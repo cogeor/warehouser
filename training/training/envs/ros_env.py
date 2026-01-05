@@ -119,9 +119,7 @@ class ROSGymEnv(gym.Env[Observation, Action]):
         init_result = self._init_ros()
         if init_result.is_err():
             # Return zero observation if ROS not available
-            return np.zeros(self.config.obs_dim, dtype=np.float32), {
-                "error": init_result.error()
-            }
+            return np.zeros(self.config.obs_dim, dtype=np.float32), {"error": init_result.error()}
 
         # Call reset service
         from warehouser_msgs.srv import RLReset

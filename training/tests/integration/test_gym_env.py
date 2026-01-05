@@ -137,8 +137,7 @@ class TestROSGymEnvIntegration:
 
             # Robot position should be identical
             np.testing.assert_array_almost_equal(
-                obs1[:2], obs2[:2], decimal=2,
-                err_msg="Same seed produced different positions"
+                obs1[:2], obs2[:2], decimal=2, err_msg="Same seed produced different positions"
             )
         finally:
             env1.close()

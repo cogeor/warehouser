@@ -108,15 +108,9 @@ def train(
 def main() -> None:
     """Main entry point for training."""
     parser = argparse.ArgumentParser(description="Train PPO agent for warehouser")
-    parser.add_argument(
-        "--config", type=str, help="Path to training config JSON file"
-    )
-    parser.add_argument(
-        "--resume", type=str, help="Path to checkpoint to resume from"
-    )
-    parser.add_argument(
-        "--timesteps", type=int, default=1_000_000, help="Total training timesteps"
-    )
+    parser.add_argument("--config", type=str, help="Path to training config JSON file")
+    parser.add_argument("--resume", type=str, help="Path to checkpoint to resume from")
+    parser.add_argument("--timesteps", type=int, default=1_000_000, help="Total training timesteps")
     args = parser.parse_args()
 
     # Load or create configs

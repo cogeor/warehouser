@@ -84,15 +84,9 @@ def export_from_checkpoint(
 def main() -> None:
     """Main entry point for ONNX export."""
     parser = argparse.ArgumentParser(description="Export PPO model to ONNX")
-    parser.add_argument(
-        "checkpoint", type=str, help="Path to SB3 checkpoint (.zip file)"
-    )
-    parser.add_argument(
-        "--output", type=str, default=None, help="Output ONNX path"
-    )
-    parser.add_argument(
-        "--obs-dim", type=int, default=8, help="Observation dimension"
-    )
+    parser.add_argument("checkpoint", type=str, help="Path to SB3 checkpoint (.zip file)")
+    parser.add_argument("--output", type=str, default=None, help="Output ONNX path")
+    parser.add_argument("--obs-dim", type=int, default=8, help="Observation dimension")
     args = parser.parse_args()
 
     # Determine output path
