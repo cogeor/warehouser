@@ -7,3 +7,9 @@ __pycache__/
 .pytest_cache
 .venv
 training/checkpoints/
+
+# Coverage
+*.coverage
+coverage.xml
+htmlcov/
+.coverage.*
