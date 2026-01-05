@@ -2,3 +2,8 @@
 .claude/
 CLAUDE.md
 run.md
+*pycache*
+__pycache__/
+.pytest_cache
+.venv
+training/checkpoints/
