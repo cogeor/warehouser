@@ -1,0 +1,10 @@
+# LoadModel.srv
+# Load an ONNX model for inference
+
+# Request
+string model_path         # Path to .onnx file
+---
+# Response
+bool success
+string message            # Error message if failed
+string model_info         # JSON with model metadata

@@ -1,0 +1,10 @@
+# SetGoal.srv
+# Set the current goal/objective
+
+# Request
+string target_color       # Color of object to pick (e.g., "red", "green", "blue")
+---
+# Response
+bool success
+string message
+warehouser_msgs/Goal goal # The resolved goal (with position of closest matching object)

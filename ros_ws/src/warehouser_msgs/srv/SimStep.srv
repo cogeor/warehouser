@@ -1,0 +1,10 @@
+# SimStep.srv
+# Step simulation N ticks (for precise control during training)
+
+# Request
+int32 num_ticks           # Number of simulation ticks to execute
+---
+# Response
+bool success
+float32 elapsed_sim_time  # Simulation time elapsed
+warehouser_msgs/WorldState state

@@ -1,0 +1,7 @@
+# GetObservation.srv
+# Synchronous observation request
+
+# Request (empty)
+---
+# Response
+warehouser_msgs/Observation observation

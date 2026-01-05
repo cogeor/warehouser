@@ -1,0 +1,11 @@
+# RLReset.srv
+# Reset the simulation for a new episode
+
+# Request
+int64 seed                # Random seed (0 for random)
+string config             # Optional JSON config override
+---
+# Response
+bool success
+warehouser_msgs/Observation observation
+string info               # JSON string with episode info

@@ -1,0 +1,7 @@
+# Action.msg
+# Policy output action
+
+float32 linear             # Linear velocity command [-1, 1]
+float32 angular            # Angular velocity command [-1, 1]
+float32 pick               # Pick action probability [0, 1]
+float32 place              # Place action probability [0, 1]

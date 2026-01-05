@@ -1,0 +1,15 @@
+observations:
+  ros__parameters:
+    # Observation version (1 = position-based, 2 = lidar-based)
+    version: 1
+    world_size: 10.0
+
+    # Lidar debug settings
+    lidar_num_rays: 60
+    lidar_fov: 3.14159265  # π radians (180 degrees)
+    lidar_max_range: 10.0
+    lidar_min_range: 0.1
+
+    # Publishing rates (Hz)
+    obs_rate: 20.0
+    lidar_rate: 10.0

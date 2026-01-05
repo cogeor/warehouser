@@ -1,0 +1,16 @@
+# RLStep.srv
+# Execute one RL step in the simulation
+
+# Request
+float32 action_linear
+float32 action_angular
+float32 action_pick
+float32 action_place
+int32 num_steps           # Number of simulation steps to execute (default 1)
+---
+# Response
+warehouser_msgs/Observation observation
+float32 reward
+bool terminated           # Episode ended (goal reached, collision, etc.)
+bool truncated            # Episode cut off (max steps)
+string info               # JSON string with additional info
