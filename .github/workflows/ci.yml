@@ -73,7 +73,8 @@ jobs:
       - name: Install dependencies
         working-directory: training
         run: |
-          uv sync --dev
+          uv venv
+          uv pip install -e ".[dev]"
 
       - name: Run ruff check
         working-directory: training
@@ -103,7 +104,8 @@ jobs:
       - name: Install dependencies
         working-directory: training
         run: |
-          uv sync --dev
+          uv venv
+          uv pip install -e ".[dev]"
 
       - name: Run pytest (unit tests only)
         working-directory: training
