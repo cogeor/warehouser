@@ -4,7 +4,6 @@ import argparse
 import json
 from pathlib import Path
 
-import numpy as np
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
 from stable_baselines3.common.vec_env import DummyVecEnv

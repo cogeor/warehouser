@@ -42,7 +42,8 @@ class ROSGymEnv(gym.Env[Observation, Action]):
             low=-1.0, high=1.0, shape=(self.config.action_dim,), dtype=np.float32
         )
 
-        # Observation: [robot_x, robot_y, robot_theta, goal_dx, goal_dy, goal_dist, goal_heading, is_carrying]
+        # Observation: [robot_x, robot_y, robot_theta, goal_dx, goal_dy,
+        #               goal_dist, goal_heading, is_carrying]
         self.observation_space = gym.spaces.Box(
             low=-np.inf, high=np.inf, shape=(self.config.obs_dim,), dtype=np.float32
         )

@@ -48,7 +48,7 @@ class TestROSConnection:
         def callback(msg: WorldState) -> None:
             received.append(msg)
 
-        sub = ros_context.create_subscription(WorldState, "/world/state", callback, 10)
+        _sub = ros_context.create_subscription(WorldState, "/world/state", callback, 10)
 
         # Spin for a bit to receive messages
         import rclpy
@@ -74,7 +74,7 @@ class TestROSConnection:
         def callback(msg: Observation) -> None:
             received.append(msg)
 
-        sub = ros_context.create_subscription(Observation, "/observations", callback, 10)
+        _sub = ros_context.create_subscription(Observation, "/observations", callback, 10)
 
         import rclpy
 
@@ -88,7 +88,9 @@ class TestROSConnection:
                 break
 
         assert len(received) > 0, "No Observation messages received"
-        assert len(received[0].data) == 8, f"Expected 8 observation dims, got {len(received[0].data)}"
+        assert len(received[0].data) == 8, (
+            f"Expected 8 observation dims, got {len(received[0].data)}"
+        )
 
 
 class TestRLServices:

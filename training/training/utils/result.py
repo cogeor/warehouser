@@ -1,8 +1,10 @@
 """Result type for error handling without exceptions."""
 
+from collections.abc import Callable
 from typing import Generic, TypeVar
 
 T = TypeVar("T")
+U = TypeVar("U")
 
 
 class Result(Generic[T]):
@@ -55,8 +57,3 @@ class Result(Generic[T]):
         if self.is_ok():
             return Result.ok(func(self._value))  # type: ignore
         return Result.err(self._error)  # type: ignore
-
-
-from typing import Callable, TypeVar
-
-U = TypeVar("U")

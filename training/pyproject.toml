@@ -18,6 +18,7 @@ dev = [
     "pytest-cov>=4.0",
     "mypy>=1.5",
     "ruff>=0.1",
+    "pre-commit>=3.0",
 ]
 # Note: rclpy must be installed from ROS2 environment, not pip
 
@@ -37,6 +38,8 @@ plugins = ["pydantic.mypy"]
 
 [tool.ruff]
 line-length = 100
+
+[tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
 
 [tool.pytest.ini_options]

@@ -3,7 +3,6 @@
 import argparse
 from pathlib import Path
 
-import numpy as np
 import onnx
 import torch
 from stable_baselines3 import PPO

@@ -47,6 +47,7 @@ source install/setup.bash
 cd training
 uv venv && source .venv/bin/activate
 uv pip install -e ".[dev]"
+pre-commit install  # Enable auto-linting on commit
 ```
 
 ### Run Tests
