@@ -4,6 +4,8 @@ These tests require the simulation, observations, and rl_bridge nodes to be runn
     ros2 launch warehouser_bringup bringup.launch.py
 """
 
+from collections.abc import Generator
+
 import numpy as np
 import pytest
 
@@ -26,7 +28,7 @@ class TestROSGymEnvIntegration:
         )
 
     @pytest.fixture
-    def env(self, config: EnvConfig) -> ROSGymEnv:
+    def env(self, config: EnvConfig) -> Generator[ROSGymEnv, None, None]:
         """Create environment and clean up after test."""
         env = ROSGymEnv(config)
         yield env
@@ -163,7 +165,7 @@ class TestGymEnvWithSB3:
     """Test that the environment works with Stable-Baselines3."""
 
     @pytest.fixture
-    def env(self) -> ROSGymEnv:
+    def env(self) -> Generator[ROSGymEnv, None, None]:
         config = EnvConfig(obs_dim=8, action_dim=4, max_steps=100)
         env = ROSGymEnv(config)
         yield env

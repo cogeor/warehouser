@@ -32,7 +32,7 @@ class TestRobotState:
 
     def test_validation_rejects_invalid_type(self) -> None:
         with pytest.raises(ValidationError):
-            RobotState(x="invalid", y=0.0, theta=0.0)  # type: ignore
+            RobotState(x="invalid", y=0.0, theta=0.0)
 
     def test_model_serialization(self) -> None:
         state = RobotState(x=1.0, y=2.0, theta=0.5)

@@ -21,8 +21,13 @@ class TestROSGymEnv:
 
         assert env.observation_space.shape == (8,)
         assert env.action_space.shape == (4,)
-        assert env.action_space.low.min() == -1.0
-        assert env.action_space.high.max() == 1.0
+        # Cast to Box for type checking
+        from gymnasium.spaces import Box
+
+        action_space = env.action_space
+        assert isinstance(action_space, Box)
+        assert action_space.low.min() == -1.0
+        assert action_space.high.max() == 1.0
 
     def test_action_space_dtype(self, config: EnvConfig) -> None:
         env = ROSGymEnv(config)

@@ -4,6 +4,9 @@ These tests require the simulation, observations, and rl_bridge nodes to be runn
     ros2 launch warehouser_bringup bringup.launch.py
 """
 
+from collections.abc import Generator
+from typing import Any
+
 import pytest
 
 # Skip all tests if ROS2 is not available
@@ -14,7 +17,7 @@ class TestROSConnection:
     """Test basic ROS2 connectivity."""
 
     @pytest.fixture
-    def ros_context(self):
+    def ros_context(self) -> Generator[Any, None, None]:
         """Initialize ROS2 context for tests."""
         import rclpy
         from rclpy.node import Node
@@ -25,21 +28,21 @@ class TestROSConnection:
         node.destroy_node()
         rclpy.shutdown()
 
-    def test_rl_reset_service_exists(self, ros_context) -> None:
+    def test_rl_reset_service_exists(self, ros_context: Any) -> None:
         """Test that /rl/reset service is available."""
         from warehouser_msgs.srv import RLReset
 
         client = ros_context.create_client(RLReset, "/rl/reset")
         assert client.wait_for_service(timeout_sec=5.0), "RLReset service not available"
 
-    def test_rl_step_service_exists(self, ros_context) -> None:
+    def test_rl_step_service_exists(self, ros_context: Any) -> None:
         """Test that /rl/step service is available."""
         from warehouser_msgs.srv import RLStep
 
         client = ros_context.create_client(RLStep, "/rl/step")
         assert client.wait_for_service(timeout_sec=5.0), "RLStep service not available"
 
-    def test_world_state_topic_exists(self, ros_context) -> None:
+    def test_world_state_topic_exists(self, ros_context: Any) -> None:
         """Test that /world/state topic is publishing."""
         from warehouser_msgs.msg import WorldState
 
@@ -65,7 +68,7 @@ class TestROSConnection:
         assert len(received) > 0, "No WorldState messages received"
         assert len(received[0].entities) > 0, "WorldState has no entities"
 
-    def test_observations_topic_exists(self, ros_context) -> None:
+    def test_observations_topic_exists(self, ros_context: Any) -> None:
         """Test that /observations topic is publishing."""
         from warehouser_msgs.msg import Observation
 
@@ -97,7 +100,7 @@ class TestRLServices:
     """Test RL service functionality."""
 
     @pytest.fixture
-    def ros_context(self):
+    def ros_context(self) -> Generator[Any, None, None]:
         """Initialize ROS2 context for tests."""
         import rclpy
         from rclpy.node import Node
@@ -108,7 +111,7 @@ class TestRLServices:
         node.destroy_node()
         rclpy.shutdown()
 
-    def test_reset_returns_observation(self, ros_context) -> None:
+    def test_reset_returns_observation(self, ros_context: Any) -> None:
         """Test that RLReset returns a valid observation."""
         import rclpy
         from warehouser_msgs.srv import RLReset
@@ -127,7 +130,7 @@ class TestRLServices:
         assert response.success, "RLReset failed"
         assert len(response.observation.data) == 8, "Wrong observation dimension"
 
-    def test_step_returns_reward(self, ros_context) -> None:
+    def test_step_returns_reward(self, ros_context: Any) -> None:
         """Test that RLStep returns reward and observation."""
         import rclpy
         from warehouser_msgs.srv import RLReset, RLStep
@@ -160,7 +163,7 @@ class TestRLServices:
         # Check reward is a valid number (not NaN)
         assert response.reward == response.reward, "Reward is NaN"
 
-    def test_multiple_steps(self, ros_context) -> None:
+    def test_multiple_steps(self, ros_context: Any) -> None:
         """Test multiple consecutive steps."""
         import rclpy
         from warehouser_msgs.srv import RLReset, RLStep

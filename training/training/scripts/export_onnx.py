@@ -2,6 +2,7 @@
 
 import argparse
 from pathlib import Path
+from typing import Any
 
 import onnx
 import torch
@@ -31,9 +32,9 @@ def export_to_onnx(
             super().__init__()
             self.policy = policy
 
-        def forward(self, obs: torch.Tensor) -> torch.Tensor:
+        def forward(self, obs: torch.Tensor) -> Any:
             # Get action from policy (deterministic)
-            return self.policy.actor.get_action_dist_params(obs)[0]
+            return self.policy.actor.get_action_dist_params(obs)[0]  # type: ignore
 
     wrapper = PolicyWrapper(policy)
     wrapper.eval()
@@ -44,7 +45,7 @@ def export_to_onnx(
     # Export to ONNX
     torch.onnx.export(
         wrapper,
-        dummy_input,
+        (dummy_input,),
         output_path,
         opset_version=opset_version,
         input_names=["observation"],
