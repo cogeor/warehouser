@@ -1,0 +1,6 @@
+safety:
+  ros__parameters:
+    min_distance: 0.3
+    slowdown_distance: 0.8
+    max_linear_vel: 1.0
+    max_angular_vel: 2.0

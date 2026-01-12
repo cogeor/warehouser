@@ -1,0 +1,6 @@
+inference:
+  ros__parameters:
+    v_max: 1.0
+    omega_max: 2.0
+    inference_rate: 20.0
+    default_model_path: ""

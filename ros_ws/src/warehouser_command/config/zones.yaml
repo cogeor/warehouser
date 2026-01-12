@@ -1,0 +1,7 @@
+command:
+  ros__parameters:
+    zones:
+      station_a: [8.0, 8.0]
+      station_b: [2.0, 8.0]
+      charging: [1.0, 1.0]
+      drop_zone: [8.0, 1.0]

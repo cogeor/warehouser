@@ -1,0 +1,4 @@
+task_manager:
+  ros__parameters:
+    pickup_radius: 0.5
+    place_radius: 0.5

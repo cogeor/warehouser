@@ -1,0 +1,62 @@
+simulation:
+  ros__parameters:
+    dt: 0.02
+    world_width: 10.0
+    world_height: 10.0
+
+    robot:
+      id: "robot"
+      spawn_x: 1.0
+      spawn_y: 1.0
+      spawn_theta: 0.0
+
+    objects:
+      - id: "red_1"
+        color: "red"
+        x: 3.0
+        y: 2.0
+        pickup_radius: 0.5
+      - id: "red_2"
+        color: "red"
+        x: 7.0
+        y: 6.0
+        pickup_radius: 0.5
+      - id: "green_1"
+        color: "green"
+        x: 5.0
+        y: 4.0
+        pickup_radius: 0.5
+      - id: "blue_1"
+        color: "blue"
+        x: 8.0
+        y: 3.0
+        pickup_radius: 0.5
+
+    walls:
+      - id: "wall_bottom"
+        x: 0.0
+        y: 0.0
+        width: 10.0
+        height: 0.1
+      - id: "wall_top"
+        x: 0.0
+        y: 9.9
+        width: 10.0
+        height: 0.1
+      - id: "wall_left"
+        x: 0.0
+        y: 0.0
+        width: 0.1
+        height: 10.0
+      - id: "wall_right"
+        x: 9.9
+        y: 0.0
+        width: 0.1
+        height: 10.0
+
+    zones:
+      - id: "drop_zone"
+        name: "drop_zone"
+        x: 8.0
+        y: 8.0
+        radius: 0.5
