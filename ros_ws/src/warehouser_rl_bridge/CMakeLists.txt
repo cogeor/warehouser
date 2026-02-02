@@ -25,6 +25,8 @@ find_package(warehouser_msgs REQUIRED)
 add_library(${PROJECT_NAME}_lib SHARED
   src/reward_calculator.cpp
   src/reward_strategy.cpp
+  src/occupancy_tracker.cpp
+  src/exploration_reward.cpp
 )
 target_include_directories(${PROJECT_NAME}_lib PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -60,6 +62,9 @@ if(BUILD_TESTING)
 
   ament_add_gtest(test_reward_strategy test/test_reward_strategy.cpp)
   target_link_libraries(test_reward_strategy ${PROJECT_NAME}_lib)
+
+  ament_add_gtest(test_exploration_reward test/test_exploration_reward.cpp)
+  target_link_libraries(test_exploration_reward ${PROJECT_NAME}_lib)
 
   # Integration tests (require nodes to be running)
   ament_add_gtest(test_rl_bridge_integration test/integration/test_rl_bridge_node.cpp)
