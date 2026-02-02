@@ -14,11 +14,22 @@
 
 namespace warehouser {
 
+/// Configuration for a single robot spawn
+struct RobotSpawnConfig {
+    std::string id = "robot";
+    float x = 1.0f;
+    float y = 1.0f;
+    float theta = 0.0f;
+};
+
 /// Configuration for the world
 struct WorldConfig {
     float width = 10.0f;
     float height = 10.0f;
+    // Legacy: single robot spawn (for backward compatibility)
     std::array<float, 3> robot_spawn = {1.0f, 1.0f, 0.0f};  // x, y, theta
+    // Multi-robot: list of robot spawns (if empty, uses robot_spawn)
+    std::vector<RobotSpawnConfig> robot_spawns;
 };
 
 /// Manages all entities in the simulation world.
@@ -53,9 +64,23 @@ public:
 
     // Entity access
 
-    /// Get the robot (never null after initialization)
-    Robot* robot() { return robot_.get(); }
-    const Robot* robot() const { return robot_.get(); }
+    /// Get robot by index (default 0 for backward compatibility)
+    /// @param index Robot index (0-based)
+    /// @return Pointer to robot, or nullptr if index out of range
+    Robot* robot(size_t index = 0) {
+        return index < robots_.size() ? robots_[index].get() : nullptr;
+    }
+    const Robot* robot(size_t index = 0) const {
+        return index < robots_.size() ? robots_[index].get() : nullptr;
+    }
+
+    /// Get number of robots in the world
+    size_t robotCount() const { return robots_.size(); }
+
+    /// Add a robot to the world
+    /// @param config Robot spawn configuration
+    /// @return Index of the new robot
+    size_t addRobot(const RobotSpawnConfig& config);
 
     /// Get all pickable objects
     const std::vector<std::unique_ptr<PickableObject>>& objects() const {
@@ -106,13 +131,13 @@ private:
     WorldConfig config_;
     std::string config_path_;
 
-    std::unique_ptr<Robot> robot_;
+    std::vector<std::unique_ptr<Robot>> robots_;
     std::vector<std::unique_ptr<PickableObject>> objects_;
     std::vector<std::unique_ptr<Wall>> walls_;
     std::vector<std::unique_ptr<Zone>> zones_;
 
     // Initial state for reset
-    std::array<float, 3> initial_robot_pose_;
+    std::vector<RobotSpawnConfig> initial_robot_configs_;
     std::vector<std::pair<std::string, std::pair<float, float>>> initial_object_positions_;
 
     float sim_time_ = 0.0f;

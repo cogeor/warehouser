@@ -9,11 +9,27 @@
 namespace warehouser {
 
 WorldManager::WorldManager(const WorldConfig& config) : config_(config) {
-    // Create robot at spawn position
-    robot_ = std::make_unique<Robot>("robot", config.robot_spawn[0],
-                                      config.robot_spawn[1],
-                                      config.robot_spawn[2]);
-    initial_robot_pose_ = config.robot_spawn;
+    // Use robot_spawns if provided, otherwise use legacy robot_spawn
+    if (!config.robot_spawns.empty()) {
+        for (const auto& spawn : config.robot_spawns) {
+            addRobot(spawn);
+        }
+    } else {
+        // Legacy single robot support
+        RobotSpawnConfig legacy_spawn;
+        legacy_spawn.id = "robot";
+        legacy_spawn.x = config.robot_spawn[0];
+        legacy_spawn.y = config.robot_spawn[1];
+        legacy_spawn.theta = config.robot_spawn[2];
+        addRobot(legacy_spawn);
+    }
+}
+
+size_t WorldManager::addRobot(const RobotSpawnConfig& config) {
+    robots_.push_back(std::make_unique<Robot>(
+        config.id, config.x, config.y, config.theta));
+    initial_robot_configs_.push_back(config);
+    return robots_.size() - 1;
 }
 
 std::expected<void, std::string> WorldManager::loadConfig(
@@ -23,11 +39,13 @@ std::expected<void, std::string> WorldManager::loadConfig(
     // For now, create a default world
     // TODO: Parse YAML config file
 
-    // Create default robot
-    robot_ = std::make_unique<Robot>("robot", config_.robot_spawn[0],
-                                      config_.robot_spawn[1],
-                                      config_.robot_spawn[2]);
-    initial_robot_pose_ = config_.robot_spawn;
+    // Create default robot using legacy spawn position
+    RobotSpawnConfig default_spawn;
+    default_spawn.id = "robot";
+    default_spawn.x = config_.robot_spawn[0];
+    default_spawn.y = config_.robot_spawn[1];
+    default_spawn.theta = config_.robot_spawn[2];
+    addRobot(default_spawn);
 
     // Create some default objects
     auto red = std::make_unique<PickableObject>("red_1", 3.0f, 2.0f, "red");
@@ -65,15 +83,16 @@ void WorldManager::reset() {
     sim_time_ = 0.0f;
     running_ = false;
 
-    // Reset robot
-    if (robot_) {
-        robot_->x = initial_robot_pose_[0];
-        robot_->y = initial_robot_pose_[1];
-        robot_->theta = initial_robot_pose_[2];
-        robot_->v = 0.0f;
-        robot_->omega = 0.0f;
-        robot_->is_carrying = false;
-        robot_->carried_object_id.clear();
+    // Reset all robots to their initial configurations
+    for (size_t i = 0; i < robots_.size() && i < initial_robot_configs_.size(); ++i) {
+        const auto& config = initial_robot_configs_[i];
+        robots_[i]->x = config.x;
+        robots_[i]->y = config.y;
+        robots_[i]->theta = config.theta;
+        robots_[i]->v = 0.0f;
+        robots_[i]->omega = 0.0f;
+        robots_[i]->is_carrying = false;
+        robots_[i]->carried_object_id.clear();
     }
 
     // Reset objects to initial positions
@@ -91,25 +110,28 @@ void WorldManager::step(float dt) {
         return;
     }
 
-    // Store previous position for collision rollback
-    float prev_x = robot_->x;
-    float prev_y = robot_->y;
+    // Update all robots
+    for (auto& robot : robots_) {
+        // Store previous position for collision rollback
+        float prev_x = robot->x;
+        float prev_y = robot->y;
 
-    // Update robot
-    robot_->update(dt);
+        // Update robot
+        robot->update(dt);
 
-    // Check collision and rollback if needed
-    if (checkCollision(robot_->x, robot_->y) || !isInBounds(robot_->x, robot_->y)) {
-        robot_->x = prev_x;
-        robot_->y = prev_y;
-        robot_->stop();
-    }
+        // Check collision and rollback if needed
+        if (checkCollision(robot->x, robot->y) || !isInBounds(robot->x, robot->y)) {
+            robot->x = prev_x;
+            robot->y = prev_y;
+            robot->stop();
+        }
 
-    // Update carried object position
-    if (robot_->is_carrying) {
-        if (auto* obj = findObject(robot_->carried_object_id)) {
-            obj->x = robot_->x;
-            obj->y = robot_->y;
+        // Update carried object position
+        if (robot->is_carrying) {
+            if (auto* obj = findObject(robot->carried_object_id)) {
+                obj->x = robot->x;
+                obj->y = robot->y;
+            }
         }
     }
 
@@ -119,10 +141,13 @@ void WorldManager::step(float dt) {
 std::expected<void, std::string> WorldManager::moveEntity(const std::string& id,
                                                            float new_x,
                                                            float new_y) {
-    if (robot_ && robot_->id == id) {
-        robot_->x = new_x;
-        robot_->y = new_y;
-        return {};
+    // Search all robots
+    for (auto& robot : robots_) {
+        if (robot->id == id) {
+            robot->x = new_x;
+            robot->y = new_y;
+            return {};
+        }
     }
 
     if (auto* obj = findObject(id)) {
@@ -144,9 +169,11 @@ PickableObject* WorldManager::findObject(const std::string& id) {
 }
 
 PickableObject* WorldManager::findClosestByColor(const std::string& color) {
-    if (!robot_) {
+    // Use first robot as reference (backward compatible behavior)
+    if (robots_.empty()) {
         return nullptr;
     }
+    const auto& ref_robot = robots_[0];
 
     PickableObject* closest = nullptr;
     float min_dist = std::numeric_limits<float>::max();
@@ -157,7 +184,7 @@ PickableObject* WorldManager::findClosestByColor(const std::string& color) {
             continue;
         }
 
-        float d = distance(robot_->x, robot_->y, obj->x, obj->y);
+        float d = distance(ref_robot->x, ref_robot->y, obj->x, obj->y);
         if (d < min_dist) {
             min_dist = d;
             closest = obj.get();
@@ -190,9 +217,9 @@ warehouser_msgs::msg::WorldState WorldManager::toMsg() const {
     msg.sim_time = sim_time_;
     msg.running = running_;
 
-    // Add robot
-    if (robot_) {
-        msg.entities.push_back(robot_->toMsg());
+    // Add all robots
+    for (const auto& robot : robots_) {
+        msg.entities.push_back(robot->toMsg());
     }
 
     // Add objects
