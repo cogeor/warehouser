@@ -93,6 +93,27 @@ class RewardConfig(BaseModel):
         return v
 
 
+class MultiAgentConfig(BaseModel):
+    """Configuration for multi-agent PettingZoo environments."""
+
+    num_agents: int = Field(default=2, ge=1, le=10, description="Number of agents")
+    obs_dim: int = Field(default=17, description="Observation dimension (V3 multi-robot)")
+    action_dim: int = Field(default=4, description="Action dimension")
+    max_steps: int = Field(default=500, description="Maximum steps per episode")
+    shared_reward: bool = Field(default=False, description="Use shared team reward")
+
+    @field_validator("num_agents")
+    @classmethod
+    def num_agents_must_be_valid(cls, v: int) -> int:
+        """Validate num_agents is in valid range [1, 10]."""
+        if not (1 <= v <= 10):
+            raise ValueError(
+                f"num_agents must be in [1, 10], got {v}. "
+                "Multi-agent environments support 1-10 agents."
+            )
+        return v
+
+
 class EnvConfig(BaseModel):
     """Environment configuration."""
 
