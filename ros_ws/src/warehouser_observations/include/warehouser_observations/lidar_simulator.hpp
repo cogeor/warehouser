@@ -5,6 +5,7 @@
 
 #include "warehouser_msgs/msg/lidar_debug.hpp"
 #include "warehouser_msgs/msg/world_state.hpp"
+#include "warehouser_observations/sensor_interface.hpp"
 
 namespace warehouser {
 
@@ -20,7 +21,8 @@ struct LidarConfig {
 /// Simulates lidar scans from world state for visualization and future training.
 /// Even when training on position-based observations (V1), lidar is simulated
 /// for visualization in the frontend.
-class LidarSimulator {
+/// Implements ISensor interface for polymorphic sensor handling.
+class LidarSimulator : public ISensor {
 public:
     explicit LidarSimulator(const LidarConfig& config = {});
 
@@ -45,6 +47,18 @@ public:
 
     /// Get the configuration
     const LidarConfig& config() const { return config_; }
+
+    // ISensor interface implementation
+
+    /// Get sensor type
+    SensorType type() const override { return SensorType::Lidar; }
+
+    /// Perform lidar scan using ISensor interface
+    /// @param pose Sensor pose (x, y, theta)
+    /// @param world World state for collision detection
+    /// @return SensorReading containing LidarReading
+    SensorReading scan(const SensorPose& pose,
+                       const warehouser_msgs::msg::WorldState& world) const override;
 
 private:
     LidarConfig config_;

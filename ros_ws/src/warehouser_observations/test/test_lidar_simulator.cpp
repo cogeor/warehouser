@@ -1,9 +1,12 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <memory>
 #include <numbers>
+#include <vector>
 
 #include "warehouser_observations/lidar_simulator.hpp"
+#include "warehouser_observations/sensor_interface.hpp"
 
 using namespace warehouser;
 
@@ -151,4 +154,74 @@ TEST_F(LidarSimulatorTest, ConfigAccessible) {
 
     EXPECT_EQ(lidar.config().num_rays, 100);
     EXPECT_FLOAT_EQ(lidar.config().max_range, 15.0f);
+}
+
+// ============ ISensor Interface Tests ============
+
+TEST_F(LidarSimulatorTest, ImplementsISensor) {
+    // LidarSimulator should be usable as ISensor pointer
+    std::unique_ptr<ISensor> sensor = std::make_unique<LidarSimulator>();
+    EXPECT_NE(sensor, nullptr);
+}
+
+TEST_F(LidarSimulatorTest, TypeReturnsLidar) {
+    LidarSimulator lidar;
+    EXPECT_EQ(lidar.type(), SensorType::Lidar);
+
+    // Also test through interface
+    std::unique_ptr<ISensor> sensor = std::make_unique<LidarSimulator>();
+    EXPECT_EQ(sensor->type(), SensorType::Lidar);
+}
+
+TEST_F(LidarSimulatorTest, ISensorScanReturnsLidarReading) {
+    LidarSimulator lidar;
+    SensorPose pose{0.0f, 0.0f, 0.0f};
+
+    auto reading = lidar.scan(pose, world_);
+
+    // Should contain LidarReading
+    ASSERT_TRUE(std::holds_alternative<LidarReading>(reading));
+
+    auto lidar_reading = std::get<LidarReading>(reading);
+    EXPECT_EQ(lidar_reading.ranges.size(), 60u);  // default config
+    EXPECT_NEAR(lidar_reading.angle_min, -3.14159f / 2.0f, 0.01f);
+    EXPECT_NEAR(lidar_reading.angle_max, 3.14159f / 2.0f, 0.01f);
+}
+
+TEST_F(LidarSimulatorTest, ISensorScanMatchesDirectScan) {
+    LidarConfig config;
+    config.num_rays = 30;
+    LidarSimulator lidar(config);
+
+    float x = 2.0f, y = 3.0f, theta = 0.5f;
+    SensorPose pose{x, y, theta};
+
+    // Direct scan
+    auto direct_ranges = lidar.scan(x, y, theta, world_);
+
+    // ISensor scan
+    auto reading = lidar.scan(pose, world_);
+    auto lidar_reading = std::get<LidarReading>(reading);
+
+    // Should produce identical results
+    ASSERT_EQ(direct_ranges.size(), lidar_reading.ranges.size());
+    for (size_t i = 0; i < direct_ranges.size(); ++i) {
+        EXPECT_FLOAT_EQ(direct_ranges[i], lidar_reading.ranges[i]);
+    }
+}
+
+TEST_F(LidarSimulatorTest, ISensorPolymorphism) {
+    // Test that we can use LidarSimulator polymorphically
+    std::vector<std::unique_ptr<ISensor>> sensors;
+    sensors.push_back(std::make_unique<LidarSimulator>());
+
+    for (const auto& sensor : sensors) {
+        EXPECT_EQ(sensor->type(), SensorType::Lidar);
+
+        SensorPose pose{5.0f, 5.0f, 0.0f};
+        warehouser_msgs::msg::WorldState empty_world;
+        auto reading = sensor->scan(pose, empty_world);
+
+        EXPECT_TRUE(std::holds_alternative<LidarReading>(reading));
+    }
 }

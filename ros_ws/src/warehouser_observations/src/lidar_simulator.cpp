@@ -43,6 +43,21 @@ warehouser_msgs::msg::LidarDebug LidarSimulator::buildDebugMsg(
     return msg;
 }
 
+SensorReading LidarSimulator::scan(
+    const SensorPose& pose,
+    const warehouser_msgs::msg::WorldState& world) const {
+    // Delegate to existing scan implementation
+    auto ranges = scan(pose.x, pose.y, pose.theta, world);
+
+    // Wrap in LidarReading struct
+    LidarReading reading;
+    reading.ranges = std::move(ranges);
+    reading.angle_min = -config_.fov / 2.0f;
+    reading.angle_max = config_.fov / 2.0f;
+
+    return reading;
+}
+
 float LidarSimulator::raycast(
     float ox, float oy, float angle,
     const warehouser_msgs::msg::WorldState& world) const {
