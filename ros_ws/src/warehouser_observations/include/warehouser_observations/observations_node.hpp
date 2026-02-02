@@ -5,6 +5,7 @@
 #include <mutex>
 
 #include <rclcpp/rclcpp.hpp>
+#include <nav_msgs/msg/odometry.hpp>
 
 #include "warehouser_msgs/msg/goal.hpp"
 #include "warehouser_msgs/msg/lidar_debug.hpp"
@@ -13,6 +14,7 @@
 #include "warehouser_msgs/srv/get_observation.hpp"
 #include "warehouser_observations/lidar_simulator.hpp"
 #include "warehouser_observations/observation_builder.hpp"
+#include "warehouser_observations/odometry_simulator.hpp"
 
 namespace warehouser {
 
@@ -32,6 +34,7 @@ private:
     // Timer callbacks
     void publishObservation();
     void publishLidarDebug();
+    void publishOdometry();
 
     // Service callback
     void handleGetObservation(
@@ -44,6 +47,7 @@ private:
     // Core components
     ObservationBuilder builder_;
     LidarSimulator lidar_;
+    OdometrySimulator odom_;
 
     // Cached state (updated by subscribers)
     warehouser_msgs::msg::WorldState last_world_;
@@ -56,11 +60,16 @@ private:
 
     rclcpp::Publisher<warehouser_msgs::msg::Observation>::SharedPtr obs_pub_;
     rclcpp::Publisher<warehouser_msgs::msg::LidarDebug>::SharedPtr lidar_pub_;
+    rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
 
     rclcpp::Service<warehouser_msgs::srv::GetObservation>::SharedPtr get_obs_srv_;
 
     rclcpp::TimerBase::SharedPtr obs_timer_;
     rclcpp::TimerBase::SharedPtr lidar_timer_;
+    rclcpp::TimerBase::SharedPtr odom_timer_;
+
+    // Odometry timing
+    float odom_rate_ = 50.0f;  // Hz
 };
 
 }  // namespace warehouser

@@ -17,6 +17,8 @@ ObservationsNode::ObservationsNode(const rclcpp::NodeOptions& options)
 
     float obs_rate = declare_parameter("obs_rate", 20.0);
     float lidar_rate = declare_parameter("lidar_rate", 10.0);
+    odom_rate_ = declare_parameter("odom_rate", 50.0);
+    bool odom_add_noise = declare_parameter("odom_add_noise", false);
 
     // Initialize observation builder
     ObservationConfig obs_config;
@@ -31,6 +33,11 @@ ObservationsNode::ObservationsNode(const rclcpp::NodeOptions& options)
     lidar_config.max_range = static_cast<float>(lidar_max_range);
     lidar_config.min_range = static_cast<float>(lidar_min_range);
     lidar_ = LidarSimulator(lidar_config);
+
+    // Initialize odometry simulator
+    OdometryConfig odom_config;
+    odom_config.add_noise = odom_add_noise;
+    odom_ = OdometrySimulator(odom_config);
 
     // Create subscribers
     world_sub_ = create_subscription<warehouser_msgs::msg::WorldState>(
@@ -47,6 +54,7 @@ ObservationsNode::ObservationsNode(const rclcpp::NodeOptions& options)
         create_publisher<warehouser_msgs::msg::Observation>("/observations", 10);
     lidar_pub_ = create_publisher<warehouser_msgs::msg::LidarDebug>(
         "/observations/lidar_debug", 10);
+    odom_pub_ = create_publisher<nav_msgs::msg::Odometry>("/odom", 10);
 
     // Create service
     get_obs_srv_ = create_service<warehouser_msgs::srv::GetObservation>(
@@ -65,10 +73,15 @@ ObservationsNode::ObservationsNode(const rclcpp::NodeOptions& options)
         std::chrono::duration_cast<std::chrono::nanoseconds>(lidar_period),
         std::bind(&ObservationsNode::publishLidarDebug, this));
 
+    auto odom_period = std::chrono::duration<double>(1.0 / odom_rate_);
+    odom_timer_ = create_wall_timer(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(odom_period),
+        std::bind(&ObservationsNode::publishOdometry, this));
+
     RCLCPP_INFO(get_logger(),
                 "Observations node initialized (version=%d, obs_rate=%.1f Hz, "
-                "lidar_rate=%.1f Hz)",
-                version, obs_rate, lidar_rate);
+                "lidar_rate=%.1f Hz, odom_rate=%.1f Hz)",
+                version, obs_rate, lidar_rate, odom_rate_);
 }
 
 void ObservationsNode::worldStateCallback(
@@ -104,6 +117,68 @@ void ObservationsNode::publishLidarDebug() {
     auto msg =
         lidar_.buildDebugMsg(robot->x, robot->y, robot->theta, last_world_);
     lidar_pub_->publish(msg);
+}
+
+void ObservationsNode::publishOdometry() {
+    if (!world_received_) {
+        return;
+    }
+
+    const auto* robot = findRobot();
+    if (!robot) {
+        return;
+    }
+
+    // Compute odometry from current robot pose
+    SensorPose pose{robot->x, robot->y, robot->theta};
+    float dt = 1.0f / odom_rate_;
+    auto odom_reading = odom_.computeOdometry(pose, dt);
+
+    // Build nav_msgs::Odometry message
+    nav_msgs::msg::Odometry msg;
+    msg.header.stamp = now();
+    msg.header.frame_id = "odom";
+    msg.child_frame_id = "base_link";
+
+    // Set current pose (absolute position)
+    msg.pose.pose.position.x = robot->x;
+    msg.pose.pose.position.y = robot->y;
+    msg.pose.pose.position.z = 0.0;
+
+    // Convert theta to quaternion (rotation around Z axis)
+    msg.pose.pose.orientation.x = 0.0;
+    msg.pose.pose.orientation.y = 0.0;
+    msg.pose.pose.orientation.z = std::sin(robot->theta / 2.0f);
+    msg.pose.pose.orientation.w = std::cos(robot->theta / 2.0f);
+
+    // Set twist (velocities in robot frame)
+    if (dt > 0.0f) {
+        // Convert world-frame deltas to robot-frame velocities
+        float cos_theta = std::cos(robot->theta);
+        float sin_theta = std::sin(robot->theta);
+        // Transform to robot frame
+        float vx_robot = cos_theta * odom_reading.dx + sin_theta * odom_reading.dy;
+        float vy_robot = -sin_theta * odom_reading.dx + cos_theta * odom_reading.dy;
+
+        msg.twist.twist.linear.x = vx_robot / dt;
+        msg.twist.twist.linear.y = vy_robot / dt;
+        msg.twist.twist.angular.z = odom_reading.dtheta / dt;
+    }
+
+    // Set covariance (6x6 diagonal, row-major)
+    for (int i = 0; i < 36; ++i) {
+        msg.pose.covariance[i] = 0.0;
+        msg.twist.covariance[i] = 0.0;
+    }
+    // Diagonal elements from OdometryReading covariance
+    msg.pose.covariance[0] = odom_reading.covariance[0];   // x
+    msg.pose.covariance[7] = odom_reading.covariance[1];   // y
+    msg.pose.covariance[35] = odom_reading.covariance[5];  // yaw
+    msg.twist.covariance[0] = odom_reading.covariance[0];
+    msg.twist.covariance[7] = odom_reading.covariance[1];
+    msg.twist.covariance[35] = odom_reading.covariance[5];
+
+    odom_pub_->publish(msg);
 }
 
 void ObservationsNode::handleGetObservation(

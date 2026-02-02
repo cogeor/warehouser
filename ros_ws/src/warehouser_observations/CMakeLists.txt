@@ -16,12 +16,14 @@ endif()
 # Find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(nav_msgs REQUIRED)
 find_package(warehouser_msgs REQUIRED)
 
-# Library with observation builder and lidar simulator
+# Library with observation builder, lidar, and odometry simulators
 add_library(${PROJECT_NAME}_lib SHARED
   src/observation_builder.cpp
   src/lidar_simulator.cpp
+  src/odometry_simulator.cpp
 )
 target_include_directories(${PROJECT_NAME}_lib PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -37,6 +39,7 @@ add_executable(observations_node src/observations_node.cpp)
 target_link_libraries(observations_node ${PROJECT_NAME}_lib)
 ament_target_dependencies(observations_node
   rclcpp
+  nav_msgs
   warehouser_msgs
 )
 
@@ -54,6 +57,9 @@ if(BUILD_TESTING)
 
   ament_add_gtest(test_lidar_simulator test/test_lidar_simulator.cpp)
   target_link_libraries(test_lidar_simulator ${PROJECT_NAME}_lib)
+
+  ament_add_gtest(test_odometry_simulator test/test_odometry_simulator.cpp)
+  target_link_libraries(test_odometry_simulator ${PROJECT_NAME}_lib)
 
   # Integration tests (require nodes to be running)
   ament_add_gtest(test_observations_integration test/integration/test_observations_node.cpp)

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <variant>
 #include <vector>
 
@@ -28,12 +29,14 @@ struct LidarReading {
     float angle_max = 0.0f;
 };
 
-/// Odometry-specific reading (for future OdometrySimulator)
+/// Odometry-specific reading
 struct OdometryReading {
-    float dx = 0.0f;
-    float dy = 0.0f;
-    float dtheta = 0.0f;
-    float dt = 0.0f;
+    float dx = 0.0f;         // Delta X in world frame
+    float dy = 0.0f;         // Delta Y in world frame
+    float dtheta = 0.0f;     // Delta heading
+    float dt = 0.0f;         // Time delta
+    // Covariance diagonal (x, y, z, roll, pitch, yaw) for nav_msgs::Odometry
+    std::array<float, 6> covariance = {0.01f, 0.01f, 0.0f, 0.0f, 0.0f, 0.01f};
 };
 
 /// IMU-specific reading (for future ImuSimulator)
