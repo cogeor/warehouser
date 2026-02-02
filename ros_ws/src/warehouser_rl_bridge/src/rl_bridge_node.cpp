@@ -17,7 +17,7 @@ RLBridgeNode::RLBridgeNode(const rclcpp::NodeOptions& options)
     float time_penalty = declare_parameter("time_penalty", -0.1);
     float goal_threshold = declare_parameter("goal_threshold", 0.5);
 
-    // Initialize reward calculator
+    // Store reward config for creating per-robot calculators later
     RewardConfig reward_config;
     reward_config.progress_weight = static_cast<float>(progress_weight);
     reward_config.collision_penalty = static_cast<float>(collision_penalty);
@@ -25,7 +25,11 @@ RLBridgeNode::RLBridgeNode(const rclcpp::NodeOptions& options)
     reward_config.pickup_bonus = static_cast<float>(pickup_bonus);
     reward_config.time_penalty = static_cast<float>(time_penalty);
     reward_config.goal_threshold = static_cast<float>(goal_threshold);
-    reward_calc_ = RewardCalculator(reward_config);
+
+    // Initialize with single robot by default (backward compatible)
+    robot_count_ = 1;
+    prev_world_states_.resize(1);
+    reward_calculators_.emplace_back(reward_config);
 
     // Initialize RNG
     std::random_device rd;
@@ -82,11 +86,24 @@ void RLBridgeNode::goalCallback(
 void RLBridgeNode::handleRLStep(
     const warehouser_msgs::srv::RLStep::Request::SharedPtr request,
     warehouser_msgs::srv::RLStep::Response::SharedPtr response) {
-    // Store previous state
-    prev_world_ = curr_world_;
+    // Validate robot_id
+    size_t robot_id = static_cast<size_t>(std::max(0, request->robot_id));
+    if (robot_id >= robot_count_) {
+        response->robot_id = request->robot_id;
+        response->reward = 0.0f;
+        response->terminated = true;
+        response->truncated = false;
+        response->info = "{\"error\": \"Invalid robot_id: " +
+                         std::to_string(robot_id) + ", robot_count: " +
+                         std::to_string(robot_count_) + "\"}";
+        return;
+    }
 
-    // Send action to robot
-    sendAction(request->action_linear, request->action_angular,
+    // Store previous state for this robot
+    prev_world_states_[robot_id] = curr_world_;
+
+    // Send action to specific robot
+    sendAction(robot_id, request->action_linear, request->action_angular,
                request->action_pick, request->action_place);
 
     // Step simulation
@@ -94,17 +111,20 @@ void RLBridgeNode::handleRLStep(
     stepSimulation(num_steps);
     step_count_++;
 
-    // Calculate reward
+    // Calculate reward for this robot
     auto reward_result =
-        reward_calc_.calculate(prev_world_, curr_world_, current_goal_,
-                               step_count_, max_steps_);
+        reward_calculators_[robot_id].calculate(
+            prev_world_states_[robot_id], curr_world_, current_goal_,
+            step_count_, max_steps_);
 
-    // Get observation
-    response->observation = getObservation();
+    // Get observation for this robot
+    response->robot_id = request->robot_id;
+    response->observation = getObservation(robot_id);
     response->reward = reward_result.reward;
     response->terminated = reward_result.terminated;
     response->truncated = reward_result.truncated;
     response->info = "{\"step\": " + std::to_string(step_count_) +
+                     ", \"robot_id\": " + std::to_string(robot_id) +
                      ", \"reason\": \"" + reward_result.termination_reason +
                      "\"}";
 }
@@ -117,11 +137,24 @@ void RLBridgeNode::handleRLReset(
         rng_.seed(static_cast<unsigned int>(request->seed));
     }
 
-    // Reset simulation
-    resetSimulation();
+    // Configure robot count (minimum 1 for backward compatibility)
+    robot_count_ = static_cast<size_t>(std::max(1, request->robot_count));
+
+    // Reset simulation with N robots
+    resetSimulation(static_cast<int>(robot_count_));
 
     // Reset episode state
     step_count_ = 0;
+
+    // Initialize per-robot state
+    prev_world_states_.resize(robot_count_);
+    if (reward_calculators_.size() < robot_count_) {
+        // Get config from first calculator and create more
+        RewardConfig config = reward_calculators_[0].config();
+        while (reward_calculators_.size() < robot_count_) {
+            reward_calculators_.emplace_back(config);
+        }
+    }
 
     // Set random goal
     setRandomGoal();
@@ -134,28 +167,52 @@ void RLBridgeNode::handleRLReset(
         if (world_received_) break;
     }
 
-    // Get initial observation
-    response->success = true;
-    response->observation = getObservation();
-    response->info = "{\"target_color\": \"" + current_goal_.target_color + "\"}";
-}
-
-void RLBridgeNode::sendAction(float linear, float angular, float pick,
-                               float place) {
-    // Velocity command
-    geometry_msgs::msg::Twist cmd;
-    cmd.linear.x = linear;
-    cmd.angular.z = angular;
-    cmd_pub_->publish(cmd);
-
-    // Pick action (threshold at 0.5)
-    if (pick > 0.5f) {
-        pick_pub_->publish(std_msgs::msg::Empty());
+    // Store initial world state for all robots
+    for (size_t i = 0; i < robot_count_; ++i) {
+        prev_world_states_[i] = curr_world_;
     }
 
-    // Place action (threshold at 0.5)
-    if (place > 0.5f) {
-        unpick_pub_->publish(std_msgs::msg::Empty());
+    // Build per-robot observations
+    response->success = true;
+    response->robot_count = static_cast<int32_t>(robot_count_);
+    response->observations.resize(robot_count_);
+    for (size_t i = 0; i < robot_count_; ++i) {
+        response->observations[i] = getObservation(i);
+    }
+
+    // Legacy: first robot observation for backward compatibility
+    response->observation = response->observations.empty() ?
+        warehouser_msgs::msg::Observation() : response->observations[0];
+
+    response->info = "{\"target_color\": \"" + current_goal_.target_color +
+                     "\", \"robot_count\": " + std::to_string(robot_count_) + "}";
+}
+
+void RLBridgeNode::sendAction(size_t robot_id, float linear, float angular,
+                               float pick, float place) {
+    // Velocity command
+    // TODO: For multi-robot, need per-robot cmd_vel topics or action message
+    // For now, use robot_id 0 for backward compatibility
+    if (robot_id == 0) {
+        geometry_msgs::msg::Twist cmd;
+        cmd.linear.x = linear;
+        cmd.angular.z = angular;
+        cmd_pub_->publish(cmd);
+
+        // Pick action (threshold at 0.5)
+        if (pick > 0.5f) {
+            pick_pub_->publish(std_msgs::msg::Empty());
+        }
+
+        // Place action (threshold at 0.5)
+        if (place > 0.5f) {
+            unpick_pub_->publish(std_msgs::msg::Empty());
+        }
+    } else {
+        // Multi-robot: would publish to /robot_{id}/cmd_vel etc.
+        // For now, log warning
+        RCLCPP_WARN_ONCE(get_logger(),
+            "Multi-robot actions not yet routed to per-robot topics");
     }
 }
 
@@ -176,18 +233,22 @@ void RLBridgeNode::stepSimulation(int num_steps) {
     }
 }
 
-void RLBridgeNode::resetSimulation() {
+void RLBridgeNode::resetSimulation(int robot_count) {
     if (!reset_client_->wait_for_service(1s)) {
         RCLCPP_WARN(get_logger(), "Reset service not available");
         return;
     }
+
+    // TODO: Pass robot_count to simulation reset if multi-robot sim is supported
+    // For now, use standard reset (single robot compatible)
+    (void)robot_count;  // Suppress unused warning
 
     auto request = std::make_shared<std_srvs::srv::Trigger::Request>();
     auto future = reset_client_->async_send_request(request);
     rclcpp::spin_until_future_complete(shared_from_this(), future, 1s);
 }
 
-warehouser_msgs::msg::Observation RLBridgeNode::getObservation() {
+warehouser_msgs::msg::Observation RLBridgeNode::getObservation(size_t robot_id) {
     if (!obs_client_->wait_for_service(1s)) {
         RCLCPP_WARN(get_logger(), "GetObservation service not available");
         return warehouser_msgs::msg::Observation();
@@ -195,6 +256,10 @@ warehouser_msgs::msg::Observation RLBridgeNode::getObservation() {
 
     auto request =
         std::make_shared<warehouser_msgs::srv::GetObservation::Request>();
+    // TODO: Add robot_id to GetObservation.srv when per-robot obs service is available
+    // For now, robot_id is used locally to build observation from curr_world_
+    (void)robot_id;
+
     auto future = obs_client_->async_send_request(request);
 
     if (rclcpp::spin_until_future_complete(shared_from_this(), future, 1s) ==

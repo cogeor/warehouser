@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <random>
+#include <vector>
 
 #include <geometry_msgs/msg/twist.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -41,17 +42,20 @@ private:
         warehouser_msgs::srv::RLReset::Response::SharedPtr response);
 
     // Helper methods
-    void sendAction(float linear, float angular, float pick, float place);
+    void sendAction(size_t robot_id, float linear, float angular, float pick, float place);
     void stepSimulation(int num_steps);
-    void resetSimulation();
-    warehouser_msgs::msg::Observation getObservation();
+    void resetSimulation(int robot_count);
+    warehouser_msgs::msg::Observation getObservation(size_t robot_id);
     void setRandomGoal();
 
-    // Reward calculator
-    RewardCalculator reward_calc_;
+    // Multi-robot configuration
+    size_t robot_count_ = 1;
 
-    // Episode state
-    warehouser_msgs::msg::WorldState prev_world_;
+    // Per-robot state (indexed by robot_id)
+    std::vector<warehouser_msgs::msg::WorldState> prev_world_states_;
+    std::vector<RewardCalculator> reward_calculators_;
+
+    // Shared episode state
     warehouser_msgs::msg::WorldState curr_world_;
     warehouser_msgs::msg::Goal current_goal_;
     int step_count_ = 0;

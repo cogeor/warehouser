@@ -2,10 +2,13 @@
 # Reset the simulation for a new episode
 
 # Request
-int64 seed                # Random seed (0 for random)
+int64 seed 0              # Random seed (0 for random)
+int32 robot_count 1       # Number of robots (default 1 for backward compatibility)
 string config             # Optional JSON config override
 ---
 # Response
 bool success
-warehouser_msgs/Observation observation
-string info               # JSON string with episode info
+int32 robot_count                           # Actual robot count
+warehouser_msgs/Observation[] observations  # Per-robot initial observations
+warehouser_msgs/Observation observation     # Legacy: first robot observation (backward compat)
+string info                                 # JSON string with episode info

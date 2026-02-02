@@ -2,13 +2,15 @@
 # Execute one RL step in the simulation
 
 # Request
+int32 robot_id 0          # Robot index (default 0 for backward compatibility)
 float32 action_linear
 float32 action_angular
 float32 action_pick
 float32 action_place
-int32 num_steps           # Number of simulation steps to execute (default 1)
+int32 num_steps 1         # Number of simulation steps to execute
 ---
 # Response
+int32 robot_id            # Echo back for verification
 warehouser_msgs/Observation observation
 float32 reward
 bool terminated           # Episode ended (goal reached, collision, etc.)
