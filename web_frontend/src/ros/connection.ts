@@ -2,6 +2,97 @@ import ROSLIB from 'roslib'
 import { useAppStore, Entity } from '../store/appStore'
 
 let ros: ROSLIB.Ros | null = null
+let reconnectTimeoutId: ReturnType<typeof setTimeout> | null = null
+
+// Reconnection configuration
+const RECONNECT_CONFIG = {
+  baseDelay: 1000,      // 1 second
+  maxDelay: 30000,      // 30 seconds
+  factor: 2,
+  jitter: 0.1,          // +/- 10%
+  maxAttempts: 10,
+}
+
+/**
+ * Calculate exponential backoff delay with jitter
+ */
+export function calculateBackoffDelay(attempt: number): number {
+  // Exponential backoff: baseDelay * factor^attempt
+  const exponentialDelay = RECONNECT_CONFIG.baseDelay * Math.pow(RECONNECT_CONFIG.factor, attempt)
+
+  // Cap at max delay
+  const cappedDelay = Math.min(exponentialDelay, RECONNECT_CONFIG.maxDelay)
+
+  // Add jitter: +/- 10%
+  const jitterRange = cappedDelay * RECONNECT_CONFIG.jitter
+  const jitter = (Math.random() * 2 - 1) * jitterRange
+
+  return Math.round(cappedDelay + jitter)
+}
+
+/**
+ * Attempt to reconnect with exponential backoff
+ */
+function scheduleReconnect() {
+  const store = useAppStore.getState()
+  const currentAttempt = store.reconnectAttempt
+
+  // Check if max attempts reached
+  if (currentAttempt >= RECONNECT_CONFIG.maxAttempts) {
+    console.error('Max reconnection attempts reached')
+    store.setConnectionError('Connection failed after maximum retry attempts. Click to retry.')
+    return
+  }
+
+  const delay = calculateBackoffDelay(currentAttempt)
+  console.log(`Reconnection attempt ${currentAttempt + 1}/${RECONNECT_CONFIG.maxAttempts} in ${delay}ms`)
+
+  // Clear any existing timeout
+  if (reconnectTimeoutId) {
+    clearTimeout(reconnectTimeoutId)
+  }
+
+  reconnectTimeoutId = setTimeout(() => {
+    if (ros) {
+      store.setReconnectAttempt(currentAttempt + 1)
+      ros.connect('ws://localhost:9090')
+    }
+  }, delay)
+}
+
+/**
+ * Reset reconnection state (called on successful connection)
+ */
+function resetReconnectionState() {
+  const store = useAppStore.getState()
+  store.setReconnectAttempt(0)
+  store.setConnectionError(null)
+
+  if (reconnectTimeoutId) {
+    clearTimeout(reconnectTimeoutId)
+    reconnectTimeoutId = null
+  }
+}
+
+/**
+ * Manual retry connection (for user-initiated retry)
+ */
+export function retryConnection() {
+  const store = useAppStore.getState()
+  store.setReconnectAttempt(0)
+  store.setConnectionError(null)
+
+  if (reconnectTimeoutId) {
+    clearTimeout(reconnectTimeoutId)
+    reconnectTimeoutId = null
+  }
+
+  if (ros) {
+    ros.connect('ws://localhost:9090')
+  } else {
+    initRosConnection()
+  }
+}
 
 export function initRosConnection() {
   const store = useAppStore.getState()
@@ -13,6 +104,7 @@ export function initRosConnection() {
   ros.on('connection', () => {
     console.log('Connected to ROS')
     store.setConnected(true)
+    resetReconnectionState()
     subscribeToTopics()
   })
 
@@ -23,13 +115,7 @@ export function initRosConnection() {
   ros.on('close', () => {
     console.log('Disconnected from ROS')
     store.setConnected(false)
-
-    // Reconnect after 2 seconds
-    setTimeout(() => {
-      if (ros) {
-        ros.connect('ws://localhost:9090')
-      }
-    }, 2000)
+    scheduleReconnect()
   })
 }
 

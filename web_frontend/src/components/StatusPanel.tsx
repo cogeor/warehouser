@@ -1,10 +1,14 @@
 import { useAppStore } from '../store/appStore'
+import { retryConnection } from '../ros/connection'
 
 export function StatusPanel() {
   const taskState = useAppStore((s) => s.taskState)
   const taskIntent = useAppStore((s) => s.taskIntent)
   const simTime = useAppStore((s) => s.simTime)
   const entities = useAppStore((s) => s.entities)
+  const connectionError = useAppStore((s) => s.connectionError)
+  const reconnectAttempt = useAppStore((s) => s.reconnectAttempt)
+  const connected = useAppStore((s) => s.connected)
 
   const robot = entities.find((e) => e.type === 'robot')
 
@@ -19,9 +23,42 @@ export function StatusPanel() {
     CANCELLED: 'text-orange-400',
   }
 
+  const handleRetry = () => {
+    retryConnection()
+  }
+
   return (
     <div className="bg-gray-800 rounded-lg p-4">
       <h2 className="text-lg font-semibold mb-3">Status</h2>
+
+      {/* Connection Error Display */}
+      {connectionError && (
+        <div
+          className="mb-3 p-3 bg-red-900/50 border border-red-600 rounded cursor-pointer hover:bg-red-900/70 transition-colors"
+          onClick={handleRetry}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              handleRetry()
+            }
+          }}
+        >
+          <div className="text-red-400 font-medium">Connection Failed</div>
+          <div className="text-red-300 text-sm mt-1">{connectionError}</div>
+        </div>
+      )}
+
+      {/* Reconnecting indicator */}
+      {!connected && !connectionError && reconnectAttempt > 0 && (
+        <div className="mb-3 p-3 bg-yellow-900/50 border border-yellow-600 rounded">
+          <div className="text-yellow-400 font-medium">Reconnecting...</div>
+          <div className="text-yellow-300 text-sm mt-1">
+            Attempt {reconnectAttempt} of 10
+          </div>
+        </div>
+      )}
+
       <div className="space-y-2 text-sm">
         <div className="flex justify-between">
           <span className="text-gray-400">State:</span>

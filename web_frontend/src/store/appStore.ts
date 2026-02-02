@@ -17,6 +17,10 @@ interface AppState {
   // Connection
   connected: boolean
   setConnected: (connected: boolean) => void
+  connectionError: string | null
+  setConnectionError: (error: string | null) => void
+  reconnectAttempt: number
+  setReconnectAttempt: (attempt: number) => void
 
   // Entities
   entities: Entity[]
@@ -42,12 +46,20 @@ interface AppState {
   // Selection
   selectedEntityId: string | null
   setSelectedEntityId: (id: string | null) => void
+
+  // Demo mode
+  demoActive: boolean
+  setDemoActive: (active: boolean) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
   // Connection
   connected: false,
   setConnected: (connected) => set({ connected }),
+  connectionError: null,
+  setConnectionError: (error) => set({ connectionError: error }),
+  reconnectAttempt: 0,
+  setReconnectAttempt: (attempt) => set({ reconnectAttempt: attempt }),
 
   // Entities
   entities: [],
@@ -74,4 +86,8 @@ export const useAppStore = create<AppState>((set) => ({
   // Selection
   selectedEntityId: null,
   setSelectedEntityId: (id) => set({ selectedEntityId: id }),
+
+  // Demo mode
+  demoActive: false,
+  setDemoActive: (active) => set({ demoActive: active }),
 }))
