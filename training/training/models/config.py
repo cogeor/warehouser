@@ -1,6 +1,8 @@
 """Pydantic configuration models for training."""
 
-from pydantic import BaseModel, Field
+import math
+
+from pydantic import BaseModel, Field, field_validator
 
 
 class RobotState(BaseModel):
@@ -14,14 +16,39 @@ class RobotState(BaseModel):
     is_carrying: bool = False
     carried_object_id: str | None = None
 
+    @field_validator("theta")
+    @classmethod
+    def theta_must_be_in_rep103_range(cls, v: float) -> float:
+        """Validate theta is in [-pi, pi] per REP-103 conventions."""
+        if not (-math.pi <= v <= math.pi):
+            raise ValueError(
+                f"theta must be in [-pi, pi] for REP-103 compliance, got {v:.4f}. "
+                f"Valid range: [{-math.pi:.4f}, {math.pi:.4f}]. "
+                "Normalize using math.atan2(sin(theta), cos(theta))."
+            )
+        return v
+
 
 class Goal(BaseModel):
     """Goal/target representation."""
 
     x: float
     y: float
+    theta: float | None = None
     color: str | None = None
     active: bool = True
+
+    @field_validator("theta")
+    @classmethod
+    def theta_must_be_in_rep103_range(cls, v: float | None) -> float | None:
+        """Validate theta is in [-pi, pi] per REP-103 conventions."""
+        if v is not None and not (-math.pi <= v <= math.pi):
+            raise ValueError(
+                f"theta must be in [-pi, pi] for REP-103 compliance, got {v:.4f}. "
+                f"Valid range: [{-math.pi:.4f}, {math.pi:.4f}]. "
+                "Normalize using math.atan2(sin(theta), cos(theta))."
+            )
+        return v
 
 
 class RewardConfig(BaseModel):
@@ -33,6 +60,37 @@ class RewardConfig(BaseModel):
     pickup_bonus: float = Field(default=50.0, description="Bonus for picking up object")
     time_penalty: float = Field(default=-0.1, description="Penalty per timestep")
     goal_threshold: float = Field(default=0.5, description="Distance to consider goal reached")
+
+    @field_validator(
+        "progress_weight",
+        "collision_penalty",
+        "success_bonus",
+        "pickup_bonus",
+        "time_penalty",
+    )
+    @classmethod
+    def weights_must_be_bounded(cls, v: float, info: object) -> float:
+        """Validate reward weights are within reasonable bounds [-1000, 1000]."""
+        if not (-1000.0 <= v <= 1000.0):
+            # Get field name from info (ValidationInfo object)
+            field_name = getattr(info, "field_name", "weight")
+            raise ValueError(
+                f"{field_name} must be in [-1000, 1000], got {v}. "
+                "Extreme reward values can destabilize training. "
+                "Consider using smaller magnitudes (typical range: -100 to 100)."
+            )
+        return v
+
+    @field_validator("goal_threshold")
+    @classmethod
+    def goal_threshold_must_be_positive(cls, v: float) -> float:
+        """Validate goal_threshold is positive."""
+        if v <= 0:
+            raise ValueError(
+                f"goal_threshold must be > 0, got {v}. "
+                "This is the distance threshold for considering a goal reached."
+            )
+        return v
 
 
 class EnvConfig(BaseModel):
@@ -53,6 +111,56 @@ class EnvConfig(BaseModel):
 
     # Reward config
     reward: RewardConfig = Field(default_factory=RewardConfig)
+
+    @field_validator("obs_dim", "action_dim")
+    @classmethod
+    def dimensions_must_be_positive(cls, v: int, info: object) -> int:
+        """Validate observation and action dimensions are positive."""
+        field_name = getattr(info, "field_name", "dimension")
+        if v <= 0:
+            raise ValueError(
+                f"{field_name} must be > 0, got {v}. "
+                "Neural network dimensions must be positive integers."
+            )
+        return v
+
+    @field_validator("max_steps")
+    @classmethod
+    def max_steps_must_be_positive(cls, v: int) -> int:
+        """Validate max_steps is positive."""
+        if v <= 0:
+            raise ValueError(
+                f"max_steps must be > 0, got {v}. "
+                "Episodes need at least one step to run."
+            )
+        return v
+
+    @field_validator("world_width", "world_height")
+    @classmethod
+    def world_size_must_be_positive(cls, v: float, info: object) -> float:
+        """Validate world dimensions are positive."""
+        field_name = getattr(info, "field_name", "world_size")
+        if v <= 0:
+            raise ValueError(
+                f"{field_name} must be > 0, got {v}. "
+                "World dimensions must be positive values in meters."
+            )
+        return v
+
+    @field_validator("robot_spawn")
+    @classmethod
+    def robot_spawn_theta_must_be_valid(
+        cls, v: tuple[float, float, float]
+    ) -> tuple[float, float, float]:
+        """Validate robot spawn theta is in [-pi, pi] per REP-103."""
+        x, y, theta = v
+        if not (-math.pi <= theta <= math.pi):
+            raise ValueError(
+                f"robot_spawn theta must be in [-pi, pi] for REP-103 compliance, "
+                f"got {theta:.4f}. Valid range: [{-math.pi:.4f}, {math.pi:.4f}]. "
+                "Normalize using math.atan2(sin(theta), cos(theta))."
+            )
+        return v
 
 
 class TrainingConfig(BaseModel):
@@ -87,3 +195,81 @@ class TrainingConfig(BaseModel):
     # Paths
     checkpoint_dir: str = Field(default="checkpoints", description="Checkpoint directory")
     log_dir: str = Field(default="logs", description="Tensorboard log directory")
+
+    @field_validator("learning_rate")
+    @classmethod
+    def learning_rate_must_be_valid(cls, v: float) -> float:
+        """Validate learning rate is in valid range (0, 1]."""
+        if not (0 < v <= 1.0):
+            raise ValueError(
+                f"learning_rate must be in (0, 1], got {v}. "
+                "Typical values: 1e-5 to 1e-2. Recommended for PPO: 3e-4."
+            )
+        return v
+
+    @field_validator("n_steps", "batch_size", "n_epochs", "total_timesteps", "eval_freq", "n_eval_episodes", "save_freq")
+    @classmethod
+    def training_counts_must_be_positive(cls, v: int, info: object) -> int:
+        """Validate training count parameters are positive."""
+        field_name = getattr(info, "field_name", "count")
+        if v <= 0:
+            raise ValueError(
+                f"{field_name} must be > 0, got {v}. "
+                "Training parameters must be positive integers."
+            )
+        return v
+
+    @field_validator("gamma", "gae_lambda")
+    @classmethod
+    def discount_factors_must_be_valid(cls, v: float, info: object) -> float:
+        """Validate discount factors are in (0, 1]."""
+        field_name = getattr(info, "field_name", "discount")
+        if not (0 < v <= 1.0):
+            raise ValueError(
+                f"{field_name} must be in (0, 1], got {v}. "
+                "Discount factors must be positive and at most 1. "
+                "Typical values: gamma=0.99, gae_lambda=0.95."
+            )
+        return v
+
+    @field_validator("clip_range")
+    @classmethod
+    def clip_range_must_be_valid(cls, v: float) -> float:
+        """Validate PPO clip range is in (0, 0.5]."""
+        if not (0 < v <= 0.5):
+            raise ValueError(
+                f"clip_range must be in (0, 0.5], got {v}. "
+                "PPO clip range limits policy updates. Typical value: 0.2. "
+                "Values > 0.5 defeat the purpose of clipping."
+            )
+        return v
+
+    @field_validator("ent_coef", "vf_coef", "max_grad_norm")
+    @classmethod
+    def coefficients_must_be_non_negative(cls, v: float, info: object) -> float:
+        """Validate coefficients are non-negative."""
+        field_name = getattr(info, "field_name", "coefficient")
+        if v < 0:
+            raise ValueError(
+                f"{field_name} must be >= 0, got {v}. "
+                "Loss coefficients and gradient norms cannot be negative."
+            )
+        return v
+
+    @field_validator("policy_hidden", "value_hidden")
+    @classmethod
+    def hidden_layers_must_be_valid(cls, v: list[int], info: object) -> list[int]:
+        """Validate hidden layer sizes are positive."""
+        field_name = getattr(info, "field_name", "hidden_layers")
+        if not v:
+            raise ValueError(
+                f"{field_name} must have at least one layer. "
+                "Use a list of positive integers, e.g., [64, 64]."
+            )
+        for i, size in enumerate(v):
+            if size <= 0:
+                raise ValueError(
+                    f"{field_name}[{i}] must be > 0, got {size}. "
+                    "Neural network layer sizes must be positive integers."
+                )
+        return v
