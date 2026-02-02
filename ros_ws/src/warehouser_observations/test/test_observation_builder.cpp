@@ -170,3 +170,256 @@ TEST_F(ObservationBuilderTest, VersionReturnsConfiguredVersion) {
 
     EXPECT_EQ(builder.version(), ObservationVersion::V1_Position);
 }
+
+// ============ Robot Index Tests ============
+
+TEST_F(ObservationBuilderTest, BuildWithRobotIndexZeroDefault) {
+    // Build with default index (0) should work as before
+    ObservationBuilder builder;
+    auto obs = builder.build(world_, goal_);
+
+    EXPECT_EQ(obs.data.size(), 8u);
+    EXPECT_FLOAT_EQ(obs.data[0], 0.0f);  // Robot 0 at origin
+}
+
+TEST_F(ObservationBuilderTest, BuildWithExplicitRobotIndex) {
+    // Add second robot
+    warehouser_msgs::msg::Entity robot2;
+    robot2.id = "robot2";
+    robot2.type = 0;
+    robot2.x = 5.0f;
+    robot2.y = 3.0f;
+    robot2.theta = 1.0f;
+    world_.entities.push_back(robot2);
+
+    ObservationBuilder builder;
+
+    // Build observation for robot 1 (second robot)
+    auto obs = builder.build(world_, goal_, 1);
+
+    EXPECT_FLOAT_EQ(obs.data[0], 5.0f);
+    EXPECT_FLOAT_EQ(obs.data[1], 3.0f);
+    EXPECT_FLOAT_EQ(obs.data[2], 1.0f);
+}
+
+TEST_F(ObservationBuilderTest, BuildWithInvalidIndexReturnsZeros) {
+    ObservationBuilder builder;
+    auto obs = builder.build(world_, goal_, 99);  // No robot at index 99
+
+    EXPECT_EQ(obs.data.size(), 8u);
+    for (float val : obs.data) {
+        EXPECT_FLOAT_EQ(val, 0.0f);
+    }
+}
+
+// ============ V3 Multi-Robot Tests ============
+
+class V3ObservationTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        // Create config for V3
+        config_.version = ObservationVersion::V3_MultiRobot;
+        config_.max_other_robots = 3;
+
+        // Create world with multiple robots
+        // Robot 0: at origin, facing +X
+        warehouser_msgs::msg::Entity robot0;
+        robot0.id = "robot0";
+        robot0.type = 0;
+        robot0.x = 0.0f;
+        robot0.y = 0.0f;
+        robot0.theta = 0.0f;
+        robot0.is_carrying = false;
+        world_.entities.push_back(robot0);
+
+        // Robot 1: at (3, 4), facing +Y
+        warehouser_msgs::msg::Entity robot1;
+        robot1.id = "robot1";
+        robot1.type = 0;
+        robot1.x = 3.0f;
+        robot1.y = 4.0f;
+        robot1.theta = std::numbers::pi_v<float> / 2.0f;
+        robot1.is_carrying = true;
+        world_.entities.push_back(robot1);
+
+        // Goal
+        goal_.x = 5.0f;
+        goal_.y = 5.0f;
+        goal_.active = true;
+    }
+
+    ObservationConfig config_;
+    warehouser_msgs::msg::WorldState world_;
+    warehouser_msgs::msg::Goal goal_;
+};
+
+TEST_F(V3ObservationTest, ObservationDimWithMaxOtherRobots) {
+    ObservationBuilder builder(config_);
+
+    // 8 (ego) + 3 * 3 (max_other_robots) = 17
+    EXPECT_EQ(builder.observationDim(), 17u);
+}
+
+TEST_F(V3ObservationTest, ObservationDimWithDifferentMaxRobots) {
+    config_.max_other_robots = 5;
+    ObservationBuilder builder(config_);
+
+    // 8 + 3 * 5 = 23
+    EXPECT_EQ(builder.observationDim(), 23u);
+}
+
+TEST_F(V3ObservationTest, V3ObservationHasCorrectVersion) {
+    ObservationBuilder builder(config_);
+    auto obs = builder.build(world_, goal_);
+
+    EXPECT_EQ(obs.version, 3);
+}
+
+TEST_F(V3ObservationTest, V3ObservationHasCorrectSize) {
+    ObservationBuilder builder(config_);
+    auto obs = builder.build(world_, goal_);
+
+    EXPECT_EQ(obs.data.size(), 17u);
+}
+
+TEST_F(V3ObservationTest, V3EgoStateFirst8DimsMatchV1) {
+    ObservationBuilder builder_v3(config_);
+
+    ObservationConfig v1_config;
+    v1_config.version = ObservationVersion::V1_Position;
+    ObservationBuilder builder_v1(v1_config);
+
+    auto obs_v3 = builder_v3.build(world_, goal_, 0);
+    auto obs_v1 = builder_v1.build(world_, goal_, 0);
+
+    // First 8 dimensions should match exactly
+    for (size_t i = 0; i < 8; ++i) {
+        EXPECT_FLOAT_EQ(obs_v3.data[i], obs_v1.data[i])
+            << "Mismatch at index " << i;
+    }
+}
+
+TEST_F(V3ObservationTest, V3OtherRobotRelativePositionNoRotation) {
+    // Robot 0 at origin with theta=0, robot 1 at (3, 4)
+    // In robot 0's frame, robot 1 should be at (3, 4)
+    ObservationBuilder builder(config_);
+    auto obs = builder.build(world_, goal_, 0);
+
+    // Other robot 0 (which is robot index 1) relative position
+    EXPECT_NEAR(obs.data[8], 3.0f, 0.001f);   // rel_x
+    EXPECT_NEAR(obs.data[9], 4.0f, 0.001f);   // rel_y
+    // Relative theta: pi/2 - 0 = pi/2
+    EXPECT_NEAR(obs.data[10], std::numbers::pi_v<float> / 2.0f, 0.001f);
+}
+
+TEST_F(V3ObservationTest, V3OtherRobotRelativePositionWithRotation) {
+    // Rotate robot 0 to face +Y (theta = pi/2)
+    world_.entities[0].theta = std::numbers::pi_v<float> / 2.0f;
+    // Robot 1 at (3, 4) should now appear at different relative coords
+    // World delta: (3, 4)
+    // In robot 0's frame (rotated 90 deg CCW):
+    // rel_x = 3*cos(-pi/2) - 4*sin(-pi/2) = 0 + 4 = 4
+    // rel_y = 3*sin(-pi/2) + 4*cos(-pi/2) = -3 + 0 = -3
+
+    ObservationBuilder builder(config_);
+    auto obs = builder.build(world_, goal_, 0);
+
+    EXPECT_NEAR(obs.data[8], 4.0f, 0.001f);   // rel_x
+    EXPECT_NEAR(obs.data[9], -3.0f, 0.001f);  // rel_y
+}
+
+TEST_F(V3ObservationTest, V3PaddingWhenFewerRobots) {
+    // Only 2 robots, max_other_robots = 3
+    // Robot 0's observation should have 1 real other robot, 2 zeros
+    ObservationBuilder builder(config_);
+    auto obs = builder.build(world_, goal_, 0);
+
+    // First other robot slot filled
+    EXPECT_NE(obs.data[8], 0.0f);  // Has position data
+
+    // Second and third slots should be zero-padded
+    EXPECT_FLOAT_EQ(obs.data[11], 0.0f);
+    EXPECT_FLOAT_EQ(obs.data[12], 0.0f);
+    EXPECT_FLOAT_EQ(obs.data[13], 0.0f);
+    EXPECT_FLOAT_EQ(obs.data[14], 0.0f);
+    EXPECT_FLOAT_EQ(obs.data[15], 0.0f);
+    EXPECT_FLOAT_EQ(obs.data[16], 0.0f);
+}
+
+TEST_F(V3ObservationTest, V3FromDifferentRobotPerspective) {
+    // Build observation from robot 1's perspective
+    ObservationBuilder builder(config_);
+    auto obs = builder.build(world_, goal_, 1);
+
+    // Ego state should be robot 1's position
+    EXPECT_FLOAT_EQ(obs.data[0], 3.0f);
+    EXPECT_FLOAT_EQ(obs.data[1], 4.0f);
+    EXPECT_NEAR(obs.data[2], std::numbers::pi_v<float> / 2.0f, 0.001f);
+    EXPECT_FLOAT_EQ(obs.data[7], 1.0f);  // is_carrying = true
+
+    // Other robot (robot 0) should be in the observation
+    // World delta from robot 1: (0-3, 0-4) = (-3, -4)
+    // Robot 1 faces +Y (theta = pi/2), so transform:
+    // rel_x = -3*cos(-pi/2) - (-4)*sin(-pi/2) = 0 - 4 = -4
+    // rel_y = -3*sin(-pi/2) + (-4)*cos(-pi/2) = 3 + 0 = 3
+    EXPECT_NEAR(obs.data[8], -4.0f, 0.001f);
+    EXPECT_NEAR(obs.data[9], 3.0f, 0.001f);
+}
+
+TEST_F(V3ObservationTest, V3WithThreeRobots) {
+    // Add a third robot
+    warehouser_msgs::msg::Entity robot2;
+    robot2.id = "robot2";
+    robot2.type = 0;
+    robot2.x = -2.0f;
+    robot2.y = 1.0f;
+    robot2.theta = std::numbers::pi_v<float>;
+    robot2.is_carrying = false;
+    world_.entities.push_back(robot2);
+
+    ObservationBuilder builder(config_);
+    auto obs = builder.build(world_, goal_, 0);
+
+    // Should have 2 other robots filled, 1 zero-padded
+    // First other robot at (3, 4)
+    EXPECT_NEAR(obs.data[8], 3.0f, 0.001f);
+    EXPECT_NEAR(obs.data[9], 4.0f, 0.001f);
+
+    // Second other robot at (-2, 1)
+    EXPECT_NEAR(obs.data[11], -2.0f, 0.001f);
+    EXPECT_NEAR(obs.data[12], 1.0f, 0.001f);
+    EXPECT_NEAR(obs.data[13], std::numbers::pi_v<float>, 0.001f);
+
+    // Third slot zero-padded
+    EXPECT_FLOAT_EQ(obs.data[14], 0.0f);
+    EXPECT_FLOAT_EQ(obs.data[15], 0.0f);
+    EXPECT_FLOAT_EQ(obs.data[16], 0.0f);
+}
+
+TEST_F(V3ObservationTest, V3NoRobotFoundReturnsZeros) {
+    warehouser_msgs::msg::WorldState empty_world;
+    ObservationBuilder builder(config_);
+    auto obs = builder.build(empty_world, goal_, 0);
+
+    EXPECT_EQ(obs.data.size(), 17u);
+    for (float val : obs.data) {
+        EXPECT_FLOAT_EQ(val, 0.0f);
+    }
+}
+
+TEST_F(V3ObservationTest, V3SingleRobotNoOthers) {
+    // Remove second robot
+    world_.entities.pop_back();
+
+    ObservationBuilder builder(config_);
+    auto obs = builder.build(world_, goal_, 0);
+
+    // Ego state should be filled
+    EXPECT_FLOAT_EQ(obs.data[0], 0.0f);
+    EXPECT_FLOAT_EQ(obs.data[1], 0.0f);
+
+    // All other robot slots should be zero
+    for (size_t i = 8; i < 17; ++i) {
+        EXPECT_FLOAT_EQ(obs.data[i], 0.0f) << "Non-zero at index " << i;
+    }
+}
