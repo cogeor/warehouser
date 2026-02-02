@@ -5,6 +5,8 @@
 #include <numbers>
 #include <vector>
 
+#include <rclcpp/rclcpp.hpp>
+
 #include "warehouser_observations/lidar_simulator.hpp"
 #include "warehouser_observations/sensor_interface.hpp"
 
@@ -224,4 +226,101 @@ TEST_F(LidarSimulatorTest, ISensorPolymorphism) {
 
         EXPECT_TRUE(std::holds_alternative<LidarReading>(reading));
     }
+}
+
+// ============ LaserScan Message Tests ============
+
+TEST_F(LidarSimulatorTest, LaserScanMessageFormat) {
+    LidarSimulator lidar;
+    warehouser_msgs::msg::WorldState empty_world;
+    rclcpp::Time stamp(0, 0);
+    auto msg = lidar.buildLaserScanMsg(5.0f, 5.0f, 0.0f, empty_world, stamp, "test_frame");
+
+    EXPECT_EQ(msg.header.frame_id, "test_frame");
+    EXPECT_EQ(msg.ranges.size(), 60u);  // default num_rays
+    EXPECT_NEAR(msg.angle_min, -std::numbers::pi_v<float> / 2.0f, 0.01f);
+    EXPECT_NEAR(msg.angle_max, std::numbers::pi_v<float> / 2.0f, 0.01f);
+    EXPECT_FLOAT_EQ(msg.range_min, 0.1f);
+    EXPECT_FLOAT_EQ(msg.range_max, 10.0f);
+}
+
+TEST_F(LidarSimulatorTest, LaserScanDefaultFrameId) {
+    LidarSimulator lidar;
+    warehouser_msgs::msg::WorldState empty_world;
+    rclcpp::Time stamp(0, 0);
+    auto msg = lidar.buildLaserScanMsg(5.0f, 5.0f, 0.0f, empty_world, stamp);
+
+    EXPECT_EQ(msg.header.frame_id, "base_laser");
+}
+
+TEST_F(LidarSimulatorTest, LaserScanAngleIncrement) {
+    LidarConfig config;
+    config.num_rays = 60;
+    config.fov = std::numbers::pi_v<float>;  // 180 degrees
+    LidarSimulator lidar(config);
+
+    warehouser_msgs::msg::WorldState empty_world;
+    rclcpp::Time stamp(0, 0);
+    auto msg = lidar.buildLaserScanMsg(5.0f, 5.0f, 0.0f, empty_world, stamp);
+
+    // angle_increment = fov / (num_rays - 1)
+    float expected_increment = std::numbers::pi_v<float> / 59.0f;
+    EXPECT_NEAR(msg.angle_increment, expected_increment, 0.001f);
+}
+
+TEST_F(LidarSimulatorTest, LaserScanMatchesDebugMsg) {
+    LidarSimulator lidar;
+    auto debug = lidar.buildDebugMsg(5.0f, 5.0f, 0.0f, world_);
+    rclcpp::Time stamp(0, 0);
+    auto scan = lidar.buildLaserScanMsg(5.0f, 5.0f, 0.0f, world_, stamp);
+
+    ASSERT_EQ(debug.ranges.size(), scan.ranges.size());
+    for (size_t i = 0; i < debug.ranges.size(); ++i) {
+        EXPECT_FLOAT_EQ(debug.ranges[i], scan.ranges[i]);
+    }
+
+    // Angle bounds should match
+    EXPECT_FLOAT_EQ(debug.angle_min, scan.angle_min);
+    EXPECT_FLOAT_EQ(debug.angle_max, scan.angle_max);
+    EXPECT_FLOAT_EQ(debug.range_min, scan.range_min);
+    EXPECT_FLOAT_EQ(debug.range_max, scan.range_max);
+}
+
+TEST_F(LidarSimulatorTest, LaserScanCustomConfig) {
+    LidarConfig config;
+    config.num_rays = 30;
+    config.fov = 2.0f;
+    config.min_range = 0.2f;
+    config.max_range = 15.0f;
+    LidarSimulator lidar(config);
+
+    warehouser_msgs::msg::WorldState empty_world;
+    rclcpp::Time stamp(0, 0);
+    auto msg = lidar.buildLaserScanMsg(0.0f, 0.0f, 0.0f, empty_world, stamp);
+
+    EXPECT_EQ(msg.ranges.size(), 30u);
+    EXPECT_NEAR(msg.angle_min, -1.0f, 0.01f);
+    EXPECT_NEAR(msg.angle_max, 1.0f, 0.01f);
+    EXPECT_FLOAT_EQ(msg.range_min, 0.2f);
+    EXPECT_FLOAT_EQ(msg.range_max, 15.0f);
+}
+
+TEST_F(LidarSimulatorTest, LaserScanTimestamp) {
+    LidarSimulator lidar;
+    warehouser_msgs::msg::WorldState empty_world;
+    rclcpp::Time stamp(123, 456);
+    auto msg = lidar.buildLaserScanMsg(0.0f, 0.0f, 0.0f, empty_world, stamp);
+
+    EXPECT_EQ(msg.header.stamp.sec, 123);
+    EXPECT_EQ(msg.header.stamp.nanosec, 456u);
+}
+
+TEST_F(LidarSimulatorTest, LaserScanIntensitiesEmpty) {
+    LidarSimulator lidar;
+    warehouser_msgs::msg::WorldState empty_world;
+    rclcpp::Time stamp(0, 0);
+    auto msg = lidar.buildLaserScanMsg(0.0f, 0.0f, 0.0f, empty_world, stamp);
+
+    // Intensities not simulated
+    EXPECT_TRUE(msg.intensities.empty());
 }

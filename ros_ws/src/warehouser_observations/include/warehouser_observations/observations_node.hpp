@@ -6,6 +6,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <nav_msgs/msg/odometry.hpp>
+#include <sensor_msgs/msg/laser_scan.hpp>
 
 #include "warehouser_msgs/msg/goal.hpp"
 #include "warehouser_msgs/msg/lidar_debug.hpp"
@@ -60,6 +61,7 @@ private:
 
     rclcpp::Publisher<warehouser_msgs::msg::Observation>::SharedPtr obs_pub_;
     rclcpp::Publisher<warehouser_msgs::msg::LidarDebug>::SharedPtr lidar_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr scan_pub_;
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
 
     rclcpp::Service<warehouser_msgs::srv::GetObservation>::SharedPtr get_obs_srv_;

@@ -43,6 +43,37 @@ warehouser_msgs::msg::LidarDebug LidarSimulator::buildDebugMsg(
     return msg;
 }
 
+sensor_msgs::msg::LaserScan LidarSimulator::buildLaserScanMsg(
+    float robot_x, float robot_y, float robot_theta,
+    const warehouser_msgs::msg::WorldState& world,
+    const rclcpp::Time& stamp,
+    const std::string& frame_id) const {
+    auto ranges = scan(robot_x, robot_y, robot_theta, world);
+
+    sensor_msgs::msg::LaserScan msg;
+    msg.header.stamp = stamp;
+    msg.header.frame_id = frame_id;
+
+    msg.angle_min = -config_.fov / 2.0f;
+    msg.angle_max = config_.fov / 2.0f;
+    msg.angle_increment = config_.num_rays > 1 ?
+        config_.fov / static_cast<float>(config_.num_rays - 1) : 0.0f;
+
+    msg.time_increment = 0.0f;  // Simultaneous scan (simulated)
+    msg.scan_time = 0.1f;       // 10Hz scan rate
+    msg.range_min = config_.min_range;
+    msg.range_max = config_.max_range;
+
+    // Convert to double vector as required by ROS message
+    msg.ranges.resize(ranges.size());
+    for (size_t i = 0; i < ranges.size(); ++i) {
+        msg.ranges[i] = ranges[i];
+    }
+    msg.intensities = {};  // Not simulated
+
+    return msg;
+}
+
 SensorReading LidarSimulator::scan(
     const SensorPose& pose,
     const warehouser_msgs::msg::WorldState& world) const {

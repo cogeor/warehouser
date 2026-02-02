@@ -54,6 +54,7 @@ ObservationsNode::ObservationsNode(const rclcpp::NodeOptions& options)
         create_publisher<warehouser_msgs::msg::Observation>("/observations", 10);
     lidar_pub_ = create_publisher<warehouser_msgs::msg::LidarDebug>(
         "/observations/lidar_debug", 10);
+    scan_pub_ = create_publisher<sensor_msgs::msg::LaserScan>("/scan", 10);
     odom_pub_ = create_publisher<nav_msgs::msg::Odometry>("/odom", 10);
 
     // Create service
@@ -114,9 +115,15 @@ void ObservationsNode::publishLidarDebug() {
         return;
     }
 
-    auto msg =
+    // Publish custom LidarDebug for frontend visualization
+    auto debug_msg =
         lidar_.buildDebugMsg(robot->x, robot->y, robot->theta, last_world_);
-    lidar_pub_->publish(msg);
+    lidar_pub_->publish(debug_msg);
+
+    // Publish standard LaserScan for SLAM compatibility
+    auto scan_msg = lidar_.buildLaserScanMsg(
+        robot->x, robot->y, robot->theta, last_world_, now(), "base_laser");
+    scan_pub_->publish(scan_msg);
 }
 
 void ObservationsNode::publishOdometry() {

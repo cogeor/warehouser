@@ -1,7 +1,11 @@
 #pragma once
 
 #include <cmath>
+#include <string>
 #include <vector>
+
+#include <rclcpp/time.hpp>
+#include <sensor_msgs/msg/laser_scan.hpp>
 
 #include "warehouser_msgs/msg/lidar_debug.hpp"
 #include "warehouser_msgs/msg/world_state.hpp"
@@ -35,7 +39,7 @@ public:
     std::vector<float> scan(float robot_x, float robot_y, float robot_theta,
                             const warehouser_msgs::msg::WorldState& world) const;
 
-    /// Build complete LidarDebug message
+    /// Build complete LidarDebug message (for frontend visualization)
     /// @param robot_x Robot X position
     /// @param robot_y Robot Y position
     /// @param robot_theta Robot heading angle
@@ -44,6 +48,20 @@ public:
     warehouser_msgs::msg::LidarDebug buildDebugMsg(
         float robot_x, float robot_y, float robot_theta,
         const warehouser_msgs::msg::WorldState& world) const;
+
+    /// Build standard LaserScan message (for SLAM compatibility)
+    /// @param robot_x Robot X position
+    /// @param robot_y Robot Y position
+    /// @param robot_theta Robot heading angle
+    /// @param world World state for collision detection
+    /// @param stamp Timestamp for the message header
+    /// @param frame_id TF frame ID (default: "base_laser")
+    /// @return LaserScan message compatible with SLAM systems
+    sensor_msgs::msg::LaserScan buildLaserScanMsg(
+        float robot_x, float robot_y, float robot_theta,
+        const warehouser_msgs::msg::WorldState& world,
+        const rclcpp::Time& stamp,
+        const std::string& frame_id = "base_laser") const;
 
     /// Get the configuration
     const LidarConfig& config() const { return config_; }

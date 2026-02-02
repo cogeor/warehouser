@@ -17,6 +17,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(nav_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 find_package(warehouser_msgs REQUIRED)
 
 # Library with observation builder, lidar, and odometry simulators
@@ -40,6 +41,7 @@ target_link_libraries(observations_node ${PROJECT_NAME}_lib)
 ament_target_dependencies(observations_node
   rclcpp
   nav_msgs
+  sensor_msgs
   warehouser_msgs
 )
 
@@ -57,6 +59,7 @@ if(BUILD_TESTING)
 
   ament_add_gtest(test_lidar_simulator test/test_lidar_simulator.cpp)
   target_link_libraries(test_lidar_simulator ${PROJECT_NAME}_lib)
+  ament_target_dependencies(test_lidar_simulator rclcpp)
 
   ament_add_gtest(test_odometry_simulator test/test_odometry_simulator.cpp)
   target_link_libraries(test_odometry_simulator ${PROJECT_NAME}_lib)
