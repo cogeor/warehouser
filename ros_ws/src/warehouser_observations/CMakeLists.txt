@@ -20,11 +20,12 @@ find_package(nav_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(warehouser_msgs REQUIRED)
 
-# Library with observation builder, lidar, and odometry simulators
+# Library with observation builder, lidar, odometry simulators, and noise model
 add_library(${PROJECT_NAME}_lib SHARED
   src/observation_builder.cpp
   src/lidar_simulator.cpp
   src/odometry_simulator.cpp
+  src/noise_model.cpp
 )
 target_include_directories(${PROJECT_NAME}_lib PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -63,6 +64,9 @@ if(BUILD_TESTING)
 
   ament_add_gtest(test_odometry_simulator test/test_odometry_simulator.cpp)
   target_link_libraries(test_odometry_simulator ${PROJECT_NAME}_lib)
+
+  ament_add_gtest(test_noise_model test/test_noise_model.cpp)
+  target_link_libraries(test_noise_model ${PROJECT_NAME}_lib)
 
   # Integration tests (require nodes to be running)
   ament_add_gtest(test_observations_integration test/integration/test_observations_node.cpp)

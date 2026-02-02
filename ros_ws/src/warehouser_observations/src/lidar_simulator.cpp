@@ -5,7 +5,16 @@
 
 namespace warehouser {
 
-LidarSimulator::LidarSimulator(const LidarConfig& config) : config_(config) {}
+LidarSimulator::LidarSimulator(const LidarConfig& config) : config_(config) {
+    // Initialize noise model from config
+    NoiseConfig noise_cfg;
+    noise_cfg.mean = 0.0f;
+    noise_cfg.stddev = config.noise.range_stddev;
+    noise_cfg.dropout_prob = config.noise.dropout_prob;
+    noise_cfg.dropout_value = config.max_range;  // Max range on dropout
+    noise_cfg.enabled = config.noise.enabled;
+    range_noise_.setConfig(noise_cfg);
+}
 
 std::vector<float> LidarSimulator::scan(
     float robot_x, float robot_y, float robot_theta,
@@ -21,6 +30,14 @@ std::vector<float> LidarSimulator::scan(
     for (int i = 0; i < config_.num_rays; ++i) {
         float angle = start_angle + i * angle_step;
         ranges[i] = raycast(robot_x, robot_y, angle, world);
+    }
+
+    // Apply noise if enabled
+    range_noise_.applyVector(ranges);
+
+    // Clamp to valid range
+    for (auto& r : ranges) {
+        r = std::clamp(r, config_.min_range, config_.max_range);
     }
 
     return ranges;
@@ -137,6 +154,16 @@ bool LidarSimulator::checkWallCollision(
 bool LidarSimulator::isInBounds(float px, float py, float world_width,
                                  float world_height) const {
     return px >= 0 && px <= world_width && py >= 0 && py <= world_height;
+}
+
+void LidarSimulator::setNoiseEnabled(bool enabled) {
+    NoiseConfig cfg = range_noise_.config();
+    cfg.enabled = enabled;
+    range_noise_.setConfig(cfg);
+}
+
+void LidarSimulator::setNoiseSeed(unsigned int seed) {
+    range_noise_.setSeed(seed);
 }
 
 }  // namespace warehouser

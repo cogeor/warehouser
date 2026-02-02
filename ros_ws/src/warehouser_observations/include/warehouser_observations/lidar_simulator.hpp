@@ -9,6 +9,7 @@
 
 #include "warehouser_msgs/msg/lidar_debug.hpp"
 #include "warehouser_msgs/msg/world_state.hpp"
+#include "warehouser_observations/noise_model.hpp"
 #include "warehouser_observations/sensor_interface.hpp"
 
 namespace warehouser {
@@ -20,6 +21,9 @@ struct LidarConfig {
     float max_range = 10.0f;
     float min_range = 0.1f;
     float step_size = 0.05f;  // Raycast step resolution (5cm)
+
+    // Noise configuration for domain randomization
+    LidarNoiseConfig noise;
 };
 
 /// Simulates lidar scans from world state for visualization and future training.
@@ -66,6 +70,14 @@ public:
     /// Get the configuration
     const LidarConfig& config() const { return config_; }
 
+    /// Enable or disable noise
+    /// @param enabled True to enable noise
+    void setNoiseEnabled(bool enabled);
+
+    /// Set noise seed for reproducibility
+    /// @param seed Random seed value
+    void setNoiseSeed(unsigned int seed);
+
     // ISensor interface implementation
 
     /// Get sensor type
@@ -80,6 +92,7 @@ public:
 
 private:
     LidarConfig config_;
+    mutable NoiseModel range_noise_;  // Mutable for const scan methods
 
     /// Cast a single ray and return distance to first hit
     /// @param ox Origin X
