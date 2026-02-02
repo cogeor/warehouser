@@ -1,83 +1,84 @@
 #include "warehouser_rl_bridge/reward_calculator.hpp"
 
-#include <cmath>
-
 namespace warehouser {
 
 RewardCalculator::RewardCalculator(const RewardConfig& config)
-    : config_(config) {}
+    : config_(config), strategy_(createStrategyFromConfig(config)) {}
+
+void RewardCalculator::setStrategy(std::unique_ptr<IRewardStrategy> strategy) {
+    strategy_ = std::move(strategy);
+}
 
 RewardResult RewardCalculator::calculate(
     const warehouser_msgs::msg::WorldState& prev_world,
     const warehouser_msgs::msg::WorldState& curr_world,
-    const warehouser_msgs::msg::Goal& goal, int step_count,
-    int max_steps) const {
-    RewardResult result;
+    const warehouser_msgs::msg::Goal& goal,
+    int step_count, int max_steps) const {
+    // Default to robot index 0 for backward compatibility
+    return calculate(prev_world, curr_world, goal, step_count, max_steps, 0);
+}
 
-    // Find robot in current and previous state
-    const auto* prev_robot = findRobot(prev_world);
-    const auto* curr_robot = findRobot(curr_world);
+RewardResult RewardCalculator::calculate(
+    const warehouser_msgs::msg::WorldState& prev_world,
+    const warehouser_msgs::msg::WorldState& curr_world,
+    const warehouser_msgs::msg::Goal& goal,
+    int step_count, int max_steps,
+    size_t robot_index) const {
 
-    if (!curr_robot) {
-        result.terminated = true;
-        result.termination_reason = "Robot not found";
-        result.reward = config_.collision_penalty;
-        return result;
-    }
+    RewardContext ctx{
+        prev_world,
+        curr_world,
+        goal,
+        step_count,
+        max_steps,
+        robot_index
+    };
 
-    // Calculate distance to goal
-    float curr_dist = distanceToGoal(*curr_robot, goal);
+    auto result = strategy_->calculate(ctx);
 
-    // Check if goal reached
-    if (curr_dist < config_.goal_threshold) {
-        result.terminated = true;
-        result.termination_reason = "Goal reached";
-        result.reward = config_.success_bonus;
-        return result;
-    }
-
-    // Check for max steps (truncation)
-    if (step_count >= max_steps) {
+    // Handle truncation (max steps reached)
+    if (step_count >= max_steps && !result.terminated) {
         result.truncated = true;
-        result.termination_reason = "Max steps reached";
-        result.reward = config_.time_penalty;
-        return result;
+        if (result.termination_reason.empty()) {
+            result.termination_reason = "Max steps reached";
+        }
     }
-
-    // Progress reward (getting closer to goal)
-    if (prev_robot) {
-        float prev_dist = distanceToGoal(*prev_robot, goal);
-        float progress = prev_dist - curr_dist;
-        result.reward += progress * config_.progress_weight;
-    }
-
-    // Pickup reward
-    if (!prev_robot->is_carrying && curr_robot->is_carrying) {
-        result.reward += config_.pickup_bonus;
-    }
-
-    // Time penalty
-    result.reward += config_.time_penalty;
 
     return result;
 }
 
-const warehouser_msgs::msg::Entity* RewardCalculator::findRobot(
-    const warehouser_msgs::msg::WorldState& world) const {
-    for (const auto& entity : world.entities) {
-        if (entity.type == 0) {  // TYPE_ROBOT
-            return &entity;
-        }
-    }
-    return nullptr;
-}
+std::unique_ptr<IRewardStrategy> RewardCalculator::createStrategyFromConfig(
+    const RewardConfig& config) const {
+    auto composite = std::make_unique<CompositeRewardStrategy>();
 
-float RewardCalculator::distanceToGoal(
-    const warehouser_msgs::msg::Entity& robot,
-    const warehouser_msgs::msg::Goal& goal) const {
-    float dx = goal.x - robot.x;
-    float dy = goal.y - robot.y;
-    return std::sqrt(dx * dx + dy * dy);
+    // Configure navigation strategy
+    NavigationConfig nav_config;
+    nav_config.progress_weight = config.progress_weight;
+    nav_config.success_bonus = config.success_bonus;
+    nav_config.goal_threshold = config.goal_threshold;
+    composite->addStrategy(
+        std::make_shared<NavigationRewardStrategy>(nav_config), 1.0f);
+
+    // Configure collision strategy
+    CollisionConfig coll_config;
+    coll_config.collision_penalty = config.collision_penalty;
+    composite->addStrategy(
+        std::make_shared<CollisionRewardStrategy>(coll_config), 1.0f);
+
+    // Configure time strategy
+    TimeConfig time_config;
+    time_config.time_penalty = config.time_penalty;
+    composite->addStrategy(
+        std::make_shared<TimeRewardStrategy>(time_config), 1.0f);
+
+    // Configure pick/place strategy
+    PickPlaceConfig pp_config;
+    pp_config.pickup_bonus = config.pickup_bonus;
+    pp_config.place_bonus = config.pickup_bonus;  // Use same value for place
+    composite->addStrategy(
+        std::make_shared<PickPlaceRewardStrategy>(pp_config), 1.0f);
+
+    return composite;
 }
 
 }  // namespace warehouser
