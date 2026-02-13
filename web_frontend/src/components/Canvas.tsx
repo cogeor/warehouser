@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, memo } from 'react'
+import { useCallback, useMemo, memo } from 'react'
 import { Stage, Layer } from 'react-konva'
 import { useShallow } from 'zustand/react/shallow'
 import { useAppStore } from '../store/appStore'
@@ -27,19 +27,6 @@ function CanvasInner() {
   const selectedRobotId = useAppStore((s) => s.selectedRobotId)
   const setSelectedRobotId = useAppStore((s) => s.setSelectedRobotId)
 
-  // Pan state for dragging the canvas
-  const [pan, setPan] = useState({ x: 0, y: 0 })
-
-  // Reset pan to origin (exported for future use by MapPanel)
-  const resetPan = useCallback(() => {
-    setPan({ x: 0, y: 0 })
-  }, [])
-
-  // Expose resetPan on window for debugging/future integration
-  // TODO: Replace with ref/context when MapPanel needs access
-  if (typeof window !== 'undefined') {
-    ;(window as unknown as { __canvasResetPan?: () => void }).__canvasResetPan = resetPan
-  }
 
   // Memoize filtered entities to prevent re-renders when entities haven't changed
   const robots = useMemo(() => entities.filter((e) => e.type === 'robot'), [entities])
@@ -64,23 +51,11 @@ function CanvasInner() {
     [publishJson]
   )
 
-  // Memoize drag end handler
-  const handleDragEnd = useCallback((e: { target: { x: () => number; y: () => number } }) => {
-    setPan({
-      x: e.target.x(),
-      y: e.target.y(),
-    })
-  }, [])
-
   return (
     <Stage
       width={CANVAS_CONFIG.CANVAS_SIZE}
       height={CANVAS_CONFIG.CANVAS_SIZE}
       className="border border-gray-600 bg-gray-900"
-      draggable
-      x={pan.x}
-      y={pan.y}
-      onDragEnd={handleDragEnd}
     >
       <Layer>
         {/* Floor tiles */}

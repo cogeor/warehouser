@@ -48,13 +48,16 @@ export function CanvasLidar({
   return (
     <>
       {ranges.map((range, i) => {
-        // Calculate the angle for this ray in world coordinates
-        const angle = robotTheta + angleMin + (i * (angleMax - angleMin)) / (numRays - 1)
+        // Calculate the angle for this ray in WORLD coordinates (REP 103)
+        // robotTheta=0 means facing +X, positive angles are CCW
+        const worldAngle = robotTheta + angleMin + (i * (angleMax - angleMin)) / (numRays - 1)
 
-        // Calculate endpoint in canvas coordinates
-        // Note: Canvas Y is flipped, so we adjust the angle accordingly
-        const ex = rx + Math.cos(-angle + Math.PI / 2) * range * scale
-        const ey = ry + Math.sin(-angle + Math.PI / 2) * range * scale
+        // Calculate endpoint in WORLD coordinates
+        const endWorldX = robotX + Math.cos(worldAngle) * range
+        const endWorldY = robotY + Math.sin(worldAngle) * range
+
+        // Transform endpoint to canvas coordinates (handles Y-flip)
+        const [ex, ey] = transform.worldToCanvas(endWorldX, endWorldY)
 
         // Calculate distance ratio for opacity (closer = brighter endpoint)
         const distanceRatio = Math.min(range / maxRange, 1.0)
