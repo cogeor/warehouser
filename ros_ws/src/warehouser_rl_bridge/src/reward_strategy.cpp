@@ -149,6 +149,29 @@ const warehouser_msgs::msg::Entity* PickPlaceRewardStrategy::findRobotByIndex(
     return findRobotByIndexImpl(world, index);
 }
 
+// ============ RobotCollisionRewardStrategy ============
+
+RobotCollisionRewardStrategy::RobotCollisionRewardStrategy(const RobotCollisionConfig& config)
+    : config_(config) {}
+
+RewardResult RobotCollisionRewardStrategy::calculate(const RewardContext& ctx) const {
+    RewardResult result;
+
+    const auto* curr_robot = findRobotByIndex(ctx.curr_world, ctx.robot_index);
+
+    if (curr_robot && curr_robot->in_robot_collision) {
+        // Robot is colliding with another robot
+        result.reward = config_.robot_collision_penalty;
+    }
+
+    return result;
+}
+
+const warehouser_msgs::msg::Entity* RobotCollisionRewardStrategy::findRobotByIndex(
+    const warehouser_msgs::msg::WorldState& world, size_t index) const {
+    return findRobotByIndexImpl(world, index);
+}
+
 // ============ CompositeRewardStrategy ============
 
 void CompositeRewardStrategy::addStrategy(
@@ -190,6 +213,7 @@ std::unique_ptr<IRewardStrategy> createDefaultRewardStrategy() {
     composite->addStrategy(std::make_shared<CollisionRewardStrategy>(), 1.0f);
     composite->addStrategy(std::make_shared<TimeRewardStrategy>(), 1.0f);
     composite->addStrategy(std::make_shared<PickPlaceRewardStrategy>(), 1.0f);
+    composite->addStrategy(std::make_shared<RobotCollisionRewardStrategy>(), 1.0f);
 
     return composite;
 }

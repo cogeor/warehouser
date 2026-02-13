@@ -11,12 +11,13 @@ namespace warehouser {
 
 /// Reward configuration (legacy - kept for backward compatibility)
 struct RewardConfig {
-    float progress_weight = 1.0f;      // Reward for getting closer to goal
-    float collision_penalty = -100.0f;  // Penalty for collision
-    float success_bonus = 100.0f;       // Bonus for reaching goal
-    float pickup_bonus = 50.0f;         // Bonus for picking up object
-    float time_penalty = -0.1f;         // Small penalty per step
-    float goal_threshold = 0.5f;        // Distance to consider goal reached
+    float progress_weight = 1.0f;           // Reward for getting closer to goal
+    float collision_penalty = -100.0f;      // Penalty for wall collision
+    float robot_collision_penalty = -50.0f; // Penalty for robot-robot collision
+    float success_bonus = 100.0f;           // Bonus for reaching goal
+    float pickup_bonus = 50.0f;             // Bonus for picking up object
+    float time_penalty = -0.1f;             // Small penalty per step
+    float goal_threshold = 0.5f;            // Distance to consider goal reached
 };
 
 /// Calculates rewards for RL training.

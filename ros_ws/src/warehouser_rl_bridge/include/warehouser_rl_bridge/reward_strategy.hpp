@@ -124,6 +124,25 @@ private:
         const warehouser_msgs::msg::WorldState& world, size_t index) const;
 };
 
+/// Robot collision penalty configuration
+struct RobotCollisionConfig {
+    float robot_collision_penalty = -50.0f;
+};
+
+/// Robot collision penalty: penalize when robot collides with another robot
+class RobotCollisionRewardStrategy : public IRewardStrategy {
+public:
+    explicit RobotCollisionRewardStrategy(const RobotCollisionConfig& config = {});
+    RewardResult calculate(const RewardContext& ctx) const override;
+    std::string name() const override { return "robot_collision"; }
+
+private:
+    RobotCollisionConfig config_;
+
+    const warehouser_msgs::msg::Entity* findRobotByIndex(
+        const warehouser_msgs::msg::WorldState& world, size_t index) const;
+};
+
 // ============ Composite Strategy ============
 
 /// Weighted strategy entry for composite
