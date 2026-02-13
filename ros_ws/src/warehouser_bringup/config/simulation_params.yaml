@@ -1,0 +1,7 @@
+simulation:
+  ros__parameters:
+    dt: 0.02
+    world_width: 10.0
+    world_height: 10.0
+    robot_spawn: [1.0, 1.0, 0.0]
+    # config file will be passed separately

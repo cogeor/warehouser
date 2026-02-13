@@ -8,6 +8,7 @@ import os
 
 def generate_launch_description():
     bringup_dir = get_package_share_directory('warehouser_bringup')
+    sim_params = os.path.join(bringup_dir, 'config', 'simulation_params.yaml')
     world_config = os.path.join(bringup_dir, 'config', 'world.yaml')
 
     return LaunchDescription([
@@ -16,7 +17,7 @@ def generate_launch_description():
             package='warehouser_simulation',
             executable='simulation_node',
             name='simulation',
-            parameters=[world_config],
+            parameters=[sim_params, {'config': world_config}],
             output='screen',
         ),
 

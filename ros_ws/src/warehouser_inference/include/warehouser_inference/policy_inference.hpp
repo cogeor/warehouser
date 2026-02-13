@@ -1,8 +1,9 @@
 #pragma once
 
-#include <expected>
 #include <memory>
+#include <optional>
 #include <string>
+#include <variant>
 #include <vector>
 
 namespace warehouser_inference {
@@ -21,6 +22,35 @@ struct ModelInfo {
     bool loaded{false};
 };
 
+// Simple Result type for C++23 std::expected compatibility
+template<typename T>
+struct Result {
+    std::variant<T, std::string> value;
+
+    [[nodiscard]] bool has_value() const { return std::holds_alternative<T>(value); }
+    [[nodiscard]] explicit operator bool() const { return has_value(); }
+    [[nodiscard]] T& operator*() { return std::get<T>(value); }
+    [[nodiscard]] const T& operator*() const { return std::get<T>(value); }
+    [[nodiscard]] T* operator->() { return &std::get<T>(value); }
+    [[nodiscard]] const T* operator->() const { return &std::get<T>(value); }
+    [[nodiscard]] const std::string& error() const { return std::get<std::string>(value); }
+
+    static Result success(T val) { return Result{std::move(val)}; }
+    static Result failure(std::string err) { return Result{std::move(err)}; }
+};
+
+template<>
+struct Result<void> {
+    std::optional<std::string> error_;
+
+    [[nodiscard]] bool has_value() const { return !error_.has_value(); }
+    [[nodiscard]] explicit operator bool() const { return has_value(); }
+    [[nodiscard]] const std::string& error() const { return *error_; }
+
+    static Result success() { return Result{}; }
+    static Result failure(std::string err) { return Result{std::move(err)}; }
+};
+
 class PolicyInference {
 public:
     PolicyInference();
@@ -34,9 +64,9 @@ public:
     PolicyInference(PolicyInference&&) noexcept;
     PolicyInference& operator=(PolicyInference&&) noexcept;
 
-    [[nodiscard]] std::expected<void, std::string> loadModel(const std::string& model_path);
+    [[nodiscard]] Result<void> loadModel(const std::string& model_path);
 
-    [[nodiscard]] std::expected<Action, std::string> infer(const std::vector<float>& observation);
+    [[nodiscard]] Result<Action> infer(const std::vector<float>& observation);
 
     [[nodiscard]] bool isLoaded() const noexcept;
 

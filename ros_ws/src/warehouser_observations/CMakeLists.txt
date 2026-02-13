@@ -33,6 +33,7 @@ target_include_directories(${PROJECT_NAME}_lib PUBLIC
 )
 ament_target_dependencies(${PROJECT_NAME}_lib
   rclcpp
+  sensor_msgs
   warehouser_msgs
 )
 

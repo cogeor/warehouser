@@ -241,10 +241,6 @@ protected:
         robot.is_carrying = false;
         world_.entities.push_back(robot);
 
-        // Add world bounds (required for lidar simulation)
-        world_.width = 20.0f;
-        world_.height = 20.0f;
-
         // Create goal
         goal_.x = 3.0f;
         goal_.y = 4.0f;
@@ -333,8 +329,6 @@ TEST_F(V2ObservationTest, V2ObservationDimReturnsCorrectSize) {
 
 TEST_F(V2ObservationTest, V2NoRobotFoundReturnsZeros) {
     warehouser_msgs::msg::WorldState empty_world;
-    empty_world.width = 20.0f;
-    empty_world.height = 20.0f;
 
     auto obs = builder_->build(empty_world, goal_);
 

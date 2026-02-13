@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <memory>
 
 #include "warehouser_rl_bridge/reward_strategy.hpp"

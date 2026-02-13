@@ -86,13 +86,13 @@ void TaskManagerNode::goalCallback(const warehouser_msgs::msg::Goal::SharedPtr m
     // Create task from incoming goal
     Task task;
     task.task_id = std::to_string(now().nanoseconds());
-    task.target_color = msg->color;
+    task.target_color = msg->target_color;
     task.object_x = msg->x;
     task.object_y = msg->y;
     task.pickup_radius = pickup_radius_;
 
     // Determine intent
-    if (msg->color.empty()) {
+    if (msg->target_color.empty()) {
         task.intent = "navigate";
         task.dest_x = msg->x;
         task.dest_y = msg->y;
@@ -200,7 +200,7 @@ void TaskManagerNode::publishCurrentGoal() {
         current_goal_y_ = task->dest_y;
     }
 
-    goal_msg.color = task->target_color;
+    goal_msg.target_color = task->target_color;
     goal_pub_->publish(goal_msg);
 }
 

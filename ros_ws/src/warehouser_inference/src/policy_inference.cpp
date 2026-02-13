@@ -33,11 +33,11 @@ PolicyInference::~PolicyInference() = default;
 PolicyInference::PolicyInference(PolicyInference&&) noexcept = default;
 PolicyInference& PolicyInference::operator=(PolicyInference&&) noexcept = default;
 
-std::expected<void, std::string> PolicyInference::loadModel(const std::string& model_path) {
+Result<void> PolicyInference::loadModel(const std::string& model_path) {
     // Check file exists
     std::ifstream file(model_path);
     if (!file.good()) {
-        return std::unexpected("Model file not found: " + model_path);
+        return Result<void>::failure("Model file not found: " + model_path);
     }
     file.close();
 
@@ -51,7 +51,7 @@ std::expected<void, std::string> PolicyInference::loadModel(const std::string& m
 
         auto input_count = impl_->session->GetInputCount();
         if (input_count != 1) {
-            return std::unexpected("Expected 1 input, got " + std::to_string(input_count));
+            return Result<void>::failure("Expected 1 input, got " + std::to_string(input_count));
         }
 
         auto input_shape = impl_->session->GetInputTypeInfo(0)
@@ -62,7 +62,7 @@ std::expected<void, std::string> PolicyInference::loadModel(const std::string& m
 
         auto output_count = impl_->session->GetOutputCount();
         if (output_count != 1) {
-            return std::unexpected("Expected 1 output, got " + std::to_string(output_count));
+            return Result<void>::failure("Expected 1 output, got " + std::to_string(output_count));
         }
 
         auto output_shape = impl_->session->GetOutputTypeInfo(0)
@@ -74,10 +74,10 @@ std::expected<void, std::string> PolicyInference::loadModel(const std::string& m
         impl_->model_info.path = model_path;
         impl_->model_info.loaded = true;
 
-        return {};
+        return Result<void>::success();
 
     } catch (const Ort::Exception& e) {
-        return std::unexpected("ONNX Runtime error: " + std::string(e.what()));
+        return Result<void>::failure("ONNX Runtime error: " + std::string(e.what()));
     }
 #else
     // Stub implementation - mark as loaded for testing
@@ -85,17 +85,17 @@ std::expected<void, std::string> PolicyInference::loadModel(const std::string& m
     impl_->model_info.loaded = true;
     impl_->model_info.obs_dim = 8;
     impl_->model_info.action_dim = 4;
-    return {};
+    return Result<void>::success();
 #endif
 }
 
-std::expected<Action, std::string> PolicyInference::infer(const std::vector<float>& observation) {
+Result<Action> PolicyInference::infer(const std::vector<float>& observation) {
     if (!impl_->model_info.loaded) {
-        return std::unexpected("No model loaded");
+        return Result<Action>::failure("No model loaded");
     }
 
     if (static_cast<int64_t>(observation.size()) != impl_->model_info.obs_dim) {
-        return std::unexpected(
+        return Result<Action>::failure(
             "Observation size mismatch: expected " +
             std::to_string(impl_->model_info.obs_dim) +
             ", got " + std::to_string(observation.size()));
@@ -133,10 +133,10 @@ std::expected<Action, std::string> PolicyInference::infer(const std::vector<floa
         action.pick = action_data[2];
         action.place = action_data[3];
 
-        return action;
+        return Result<Action>::success(action);
 
     } catch (const Ort::Exception& e) {
-        return std::unexpected("Inference error: " + std::string(e.what()));
+        return Result<Action>::failure("Inference error: " + std::string(e.what()));
     }
 #else
     // Stub implementation - return simple reactive behavior
@@ -170,7 +170,7 @@ std::expected<Action, std::string> PolicyInference::infer(const std::vector<floa
         }
     }
 
-    return action;
+    return Result<Action>::success(action);
 #endif
 }
 

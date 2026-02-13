@@ -84,7 +84,7 @@ void CommandNode::executeCommand(const Command& cmd) {
 
         goal.x = obj->x;
         goal.y = obj->y;
-        goal.color = obj->color;
+        goal.target_color = obj->color;
 
         RCLCPP_INFO(get_logger(), "Resolved %s to object %s at (%.2f, %.2f)",
                     cmd.target.c_str(), obj->id.c_str(), obj->x, obj->y);
