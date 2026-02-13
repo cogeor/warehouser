@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import React from 'react'
+import React, { ReactNode, ForwardedRef } from 'react'
 
 // Mock Konva first to prevent canvas dependency issues
 vi.mock('konva', () => ({
@@ -10,29 +10,22 @@ vi.mock('konva', () => ({
   },
 }))
 
-// Create forwardRef mocks for Konva components that receive refs
-const createRefMock = (name: string) =>
-  React.forwardRef((_props: any, _ref: any) => null)
-createRefMock.displayName = 'MockKonvaComponent'
-
-// Create container mocks that render children
-const createContainerMock = (name: string) => {
-  const Component = ({ children }: any) => children
-  Component.displayName = `Mock${name}`
-  return Component
+// Type for Konva-like props (simplified for mocking)
+interface KonvaProps {
+  children?: ReactNode
 }
 
 // Mock react-konva with all necessary components
 // Components that receive refs use forwardRef to avoid warnings
 vi.mock('react-konva', () => ({
-  Stage: ({ children }: any) => children,
-  Layer: ({ children }: any) => children,
-  Rect: React.forwardRef((_props: any, _ref: any) => null),
-  Circle: React.forwardRef((_props: any, _ref: any) => null),
-  Arrow: React.forwardRef((_props: any, _ref: any) => null),
-  Line: React.forwardRef((_props: any, _ref: any) => null),
-  Image: React.forwardRef((_props: any, _ref: any) => null),
-  Group: ({ children }: any) => children,
+  Stage: ({ children }: KonvaProps) => children,
+  Layer: ({ children }: KonvaProps) => children,
+  Rect: React.forwardRef((_props: KonvaProps, _ref: ForwardedRef<unknown>) => null),
+  Circle: React.forwardRef((_props: KonvaProps, _ref: ForwardedRef<unknown>) => null),
+  Arrow: React.forwardRef((_props: KonvaProps, _ref: ForwardedRef<unknown>) => null),
+  Line: React.forwardRef((_props: KonvaProps, _ref: ForwardedRef<unknown>) => null),
+  Image: React.forwardRef((_props: KonvaProps, _ref: ForwardedRef<unknown>) => null),
+  Group: ({ children }: KonvaProps) => children,
 }))
 
 // Mock the sprite hooks
@@ -102,8 +95,8 @@ describe('Canvas', () => {
           type: 'wall',
           x: 0,
           y: 0,
-          x2: 10,
-          y2: 0,
+          width: 10,
+          height: 0.1,
         },
       ],
     })
@@ -115,7 +108,7 @@ describe('Canvas', () => {
     useAppStore.setState({
       entities: [
         { id: 'robot', type: 'robot', x: 5, y: 5, theta: 0 },
-        { id: 'zone_1', type: 'zone', x: 2, y: 2, size: 2 },
+        { id: 'zone_1', type: 'zone', x: 2, y: 2 },
       ],
     })
     const { container } = render(<Canvas />)
@@ -156,8 +149,8 @@ describe('Canvas', () => {
         { id: 'robot', type: 'robot', x: 1, y: 1, theta: 0 },
         { id: 'obj_1', type: 'object', x: 3, y: 2, color: 'green' },
         { id: 'obj_2', type: 'object', x: 7, y: 8, color: 'yellow' },
-        { id: 'zone_a', type: 'zone', x: 9, y: 1, size: 1 },
-        { id: 'wall_1', type: 'wall', x: 0, y: 5, x2: 10, y2: 5 },
+        { id: 'zone_a', type: 'zone', x: 9, y: 1 },
+        { id: 'wall_1', type: 'wall', x: 0, y: 5, width: 10, height: 0.1 },
       ],
     })
     const { container } = render(<Canvas />)
@@ -196,7 +189,7 @@ describe('Canvas', () => {
   it('renders when lidar has extended range', () => {
     useAppStore.setState({
       entities: [{ id: 'robot', type: 'robot', x: 5, y: 5, theta: 0 }],
-      lidarRanges: Array(360).fill(1.0),
+      lidarRanges: Array(360).fill(1.0) as number[],
       lidarAngleMin: -Math.PI,
       lidarAngleMax: Math.PI,
     })
