@@ -5,7 +5,14 @@ import math
 import pytest
 from pydantic import ValidationError
 
-from training.models.config import EnvConfig, Goal, RewardConfig, RobotState, TrainingConfig
+from training.models.config import (
+    EnvConfig,
+    Goal,
+    ObservationVersion,
+    RewardConfig,
+    RobotState,
+    TrainingConfig,
+)
 
 
 class TestRobotState:
@@ -142,7 +149,7 @@ class TestRewardConfig:
 class TestEnvConfig:
     def test_defaults(self) -> None:
         config = EnvConfig()
-        assert config.obs_dim == 8
+        assert config.obs_dim == 5  # V1 ego-centric: [goal_dx, goal_dy, goal_dist, goal_heading, is_carrying]
         assert config.action_dim == 4
         assert config.max_steps == 500
         assert config.world_width == 10.0
@@ -196,6 +203,59 @@ class TestEnvConfig:
         error_msg = str(exc_info.value)
         assert "REP-103" in error_msg
         assert "robot_spawn" in error_msg
+
+    def test_obs_dim_v1_basic(self) -> None:
+        """Test V1_Basic observation dimension (default)."""
+        config = EnvConfig()
+        assert config.obs_dim == 5  # Ego-centric: [goal_dx, goal_dy, goal_dist, goal_heading, is_carrying]
+        assert config.obs_dim == ObservationVersion.V1_Basic
+
+    def test_obs_dim_v2_lidar(self) -> None:
+        """Test V2_Lidar observation dimension."""
+        config = EnvConfig(obs_dim=ObservationVersion.V2_Lidar)
+        assert config.obs_dim == 63
+        assert config.obs_dim == ObservationVersion.V2_Lidar
+
+    def test_obs_dim_v3_multi_robot(self) -> None:
+        """Test V3_MultiRobot observation dimension."""
+        config = EnvConfig(obs_dim=ObservationVersion.V3_MultiRobot)
+        assert config.obs_dim == 14  # 5 (ego) + 3 * 3 (other robots)
+        assert config.obs_dim == ObservationVersion.V3_MultiRobot
+
+    def test_obs_dim_accepts_integer(self) -> None:
+        """Test obs_dim can be set with plain integer."""
+        config = EnvConfig(obs_dim=63)
+        assert config.obs_dim == 63
+
+    def test_obs_dim_serialization(self) -> None:
+        """Test obs_dim serializes and deserializes correctly."""
+        config = EnvConfig(obs_dim=ObservationVersion.V2_Lidar)
+        data = config.model_dump()
+        assert data["obs_dim"] == 63
+        restored = EnvConfig.model_validate(data)
+        assert restored.obs_dim == 63
+
+
+class TestObservationVersion:
+    """Tests for ObservationVersion enum."""
+
+    def test_version_values(self) -> None:
+        """Test ObservationVersion enum values."""
+        assert ObservationVersion.V1_Basic == 5  # Ego-centric
+        assert ObservationVersion.V2_Lidar == 63
+        assert ObservationVersion.V3_MultiRobot == 14  # 5 + 3*3
+
+    def test_version_is_int_compatible(self) -> None:
+        """Test ObservationVersion can be used as int."""
+        assert int(ObservationVersion.V1_Basic) == 5  # Ego-centric
+        assert int(ObservationVersion.V2_Lidar) == 63
+        assert int(ObservationVersion.V3_MultiRobot) == 14  # 5 + 3*3
+
+    def test_version_comparison(self) -> None:
+        """Test ObservationVersion can be compared with integers."""
+        assert ObservationVersion.V2_Lidar == 63
+        assert 63 == ObservationVersion.V2_Lidar
+        assert ObservationVersion.V2_Lidar > ObservationVersion.V1_Basic
 
 
 class TestTrainingConfig:
@@ -319,6 +379,72 @@ class TestTrainingConfig:
 
         with pytest.raises(ValidationError):
             TrainingConfig(value_hidden=[-1, 64])
+
+    def test_normalization_defaults(self) -> None:
+        """Test VecNormalize configuration defaults."""
+        config = TrainingConfig()
+        assert config.norm_obs is True
+        assert config.norm_reward is True
+        assert config.clip_obs == 10.0
+        assert config.clip_reward == 10.0
+
+    def test_normalization_custom_values(self) -> None:
+        """Test VecNormalize fields accept custom values."""
+        config = TrainingConfig(
+            norm_obs=False,
+            norm_reward=False,
+            clip_obs=5.0,
+            clip_reward=15.0,
+        )
+        assert config.norm_obs is False
+        assert config.norm_reward is False
+        assert config.clip_obs == 5.0
+        assert config.clip_reward == 15.0
+
+    def test_clip_obs_must_be_positive(self) -> None:
+        """Test clip_obs rejects zero and negative values."""
+        with pytest.raises(ValidationError) as exc_info:
+            TrainingConfig(clip_obs=0.0)
+        error_msg = str(exc_info.value)
+        assert "clip_obs" in error_msg
+        assert "> 0" in error_msg
+
+        with pytest.raises(ValidationError):
+            TrainingConfig(clip_obs=-5.0)
+
+    def test_clip_reward_must_be_positive(self) -> None:
+        """Test clip_reward rejects zero and negative values."""
+        with pytest.raises(ValidationError) as exc_info:
+            TrainingConfig(clip_reward=0.0)
+        error_msg = str(exc_info.value)
+        assert "clip_reward" in error_msg
+        assert "> 0" in error_msg
+
+        with pytest.raises(ValidationError):
+            TrainingConfig(clip_reward=-10.0)
+
+    def test_serialization_with_normalization_fields(self) -> None:
+        """Test serialization roundtrip includes normalization fields."""
+        config = TrainingConfig(
+            norm_obs=False,
+            norm_reward=True,
+            clip_obs=8.0,
+            clip_reward=12.0,
+        )
+        data = config.model_dump()
+
+        # Verify normalization fields are in serialized data
+        assert data["norm_obs"] is False
+        assert data["norm_reward"] is True
+        assert data["clip_obs"] == 8.0
+        assert data["clip_reward"] == 12.0
+
+        # Verify deserialization
+        restored = TrainingConfig.model_validate(data)
+        assert restored.norm_obs is False
+        assert restored.norm_reward is True
+        assert restored.clip_obs == 8.0
+        assert restored.clip_reward == 12.0
 
     def test_n_epochs_must_be_positive(self) -> None:
         """Test n_epochs rejects zero and negative values."""
