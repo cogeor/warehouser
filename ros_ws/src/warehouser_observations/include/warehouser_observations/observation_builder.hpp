@@ -9,18 +9,21 @@
 
 namespace warehouser {
 
+// Forward declaration
+class LidarSimulator;
+
 /// Observation version enum
 enum class ObservationVersion : int32_t {
-    /// Position-based observation (8 dims):
-    /// [robot_x, robot_y, robot_theta, goal_dx, goal_dy, goal_dist, goal_heading, is_carrying]
+    /// Ego-centric observation (5 dims):
+    /// [goal_dx, goal_dy, goal_dist, goal_heading, is_carrying]
     V1_Position = 1,
 
     /// Lidar-based observation (63 dims):
     /// [lidar_ranges(60), goal_bearing, goal_dist, is_carrying]
     V2_Lidar = 2,
 
-    /// Multi-robot observation (8 + 3*max_other_robots dims):
-    /// [ego_state(8), other_1_rel(3), other_2_rel(3), ...]
+    /// Multi-robot observation (5 + 3*max_other_robots dims):
+    /// [ego_state(5), other_1_rel(3), other_2_rel(3), ...]
     /// Each other_robot_rel = [rel_x, rel_y, rel_theta]
     V3_MultiRobot = 3
 };
@@ -37,6 +40,11 @@ struct ObservationConfig {
 class ObservationBuilder {
 public:
     explicit ObservationBuilder(const ObservationConfig& config = {});
+
+    /// Construct with lidar simulator for V2 observations
+    /// @param config Observation configuration
+    /// @param lidar Pointer to LidarSimulator (must outlive ObservationBuilder)
+    ObservationBuilder(const ObservationConfig& config, const LidarSimulator* lidar);
 
     /// Build observation from world state and goal
     /// @param world Current world state message
@@ -56,15 +64,24 @@ public:
 
 private:
     ObservationConfig config_;
+    const LidarSimulator* lidar_ = nullptr;
 
-    /// Build V1 position-based observation
+    /// Build V1 ego-centric observation (5 dims)
     warehouser_msgs::msg::Observation buildV1(
         const warehouser_msgs::msg::WorldState& world,
         const warehouser_msgs::msg::Goal& goal,
         size_t robot_index) const;
 
+    /// Build V2 lidar-based observation (63 dims):
+    /// [lidar_ranges(60), goal_bearing, goal_dist, is_carrying]
+    /// Requires lidar_ to be set via constructor
+    warehouser_msgs::msg::Observation buildV2(
+        const warehouser_msgs::msg::WorldState& world,
+        const warehouser_msgs::msg::Goal& goal,
+        size_t robot_index) const;
+
     /// Build V3 multi-robot observation
-    /// Includes ego state (8 dims) + relative positions of other robots
+    /// Includes ego state (5 dims) + relative positions of other robots
     warehouser_msgs::msg::Observation buildV3(
         const warehouser_msgs::msg::WorldState& world,
         const warehouser_msgs::msg::Goal& goal,
