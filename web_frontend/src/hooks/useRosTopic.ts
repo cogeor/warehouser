@@ -34,7 +34,7 @@ interface UseRosTopicResult<T> {
  *
  * @typeParam T - The message type for this topic
  * @param topicName - The name of the ROS topic to subscribe to
- * @param messageType - The ROS message type string (e.g., 'warehouser_msgs/WorldState')
+ * @param messageType - The ROS message type string (e.g., 'warehouser_msgs/msg/WorldState')
  * @returns Object containing the latest data and subscription status
  *
  * @example
@@ -42,7 +42,7 @@ interface UseRosTopicResult<T> {
  * function WorldDisplay() {
  *   const { data, isSubscribed } = useRosTopic<WorldState>(
  *     '/world/state',
- *     'warehouser_msgs/WorldState'
+ *     'warehouser_msgs/msg/WorldState'
  *   );
  *
  *   if (!isSubscribed) return <span>Waiting for connection...</span>;
@@ -108,7 +108,7 @@ export function useRosTopic<T>(
  *   // Update at most every 100ms (10 Hz)
  *   const { data, isSubscribed } = useThrottledTopic<LidarDebug>(
  *     '/observations/lidar_debug',
- *     'warehouser_msgs/LidarDebug',
+ *     'warehouser_msgs/msg/LidarDebug',
  *     100
  *   );
  *
@@ -195,7 +195,7 @@ export function useThrottledTopic<T>(
  * ```
  */
 export function useWorldState(): UseRosTopicResult<WorldState> {
-  return useRosTopic<WorldState>('/world/state', 'warehouser_msgs/WorldState');
+  return useRosTopic<WorldState>('/world/state', 'warehouser_msgs/msg/WorldState');
 }
 
 /**
@@ -224,13 +224,13 @@ export function useLidarDebug(throttleMs?: number): UseRosTopicResult<LidarDebug
   // Use throttled version if throttleMs is specified, otherwise use regular
   const throttledResult = useThrottledTopic<LidarDebug>(
     '/observations/lidar_debug',
-    'warehouser_msgs/LidarDebug',
+    'warehouser_msgs/msg/LidarDebug',
     throttleMs ?? 0
   );
 
   const regularResult = useRosTopic<LidarDebug>(
     '/observations/lidar_debug',
-    'warehouser_msgs/LidarDebug'
+    'warehouser_msgs/msg/LidarDebug'
   );
 
   // Return throttled result if throttleMs is specified (including 0)
@@ -262,7 +262,7 @@ export function useLidarDebug(throttleMs?: number): UseRosTopicResult<LidarDebug
  * ```
  */
 export function useTaskStatus(): UseRosTopicResult<TaskStatus> {
-  return useRosTopic<TaskStatus>('/task/status', 'warehouser_msgs/TaskStatus');
+  return useRosTopic<TaskStatus>('/task/status', 'warehouser_msgs/msg/TaskStatus');
 }
 
 // =============================================================================

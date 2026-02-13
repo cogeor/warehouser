@@ -53,7 +53,7 @@ export function createWorldStateSubscription(
   return createTypedSubscription<WorldState>(
     ros,
     '/world/state',
-    'warehouser_msgs/WorldState',
+    'warehouser_msgs/msg/WorldState',
     callback
   );
 }
@@ -72,7 +72,7 @@ export function createLidarDebugSubscription(
   return createTypedSubscription<LidarDebug>(
     ros,
     '/observations/lidar_debug',
-    'warehouser_msgs/LidarDebug',
+    'warehouser_msgs/msg/LidarDebug',
     callback
   );
 }
@@ -91,7 +91,7 @@ export function createTaskStatusSubscription(
   return createTypedSubscription<TaskStatus>(
     ros,
     '/task/status',
-    'warehouser_msgs/TaskStatus',
+    'warehouser_msgs/msg/TaskStatus',
     callback
   );
 }

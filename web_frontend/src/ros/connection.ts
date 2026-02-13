@@ -154,7 +154,7 @@ function subscribeToTopics() {
   const worldStateTopic = new ROSLIB.Topic({
     ros,
     name: '/world/state',
-    messageType: 'warehouser_msgs/WorldState',
+    messageType: 'warehouser_msgs/msg/WorldState',
   })
 
   worldStateTopic.subscribe((msg: unknown) => {
@@ -199,7 +199,7 @@ function subscribeToTopics() {
   const lidarTopic = new ROSLIB.Topic({
     ros,
     name: '/observations/lidar_debug',
-    messageType: 'warehouser_msgs/LidarDebug',
+    messageType: 'warehouser_msgs/msg/LidarDebug',
   })
 
   lidarTopic.subscribe((msg: unknown) => {
@@ -211,7 +211,7 @@ function subscribeToTopics() {
   const taskTopic = new ROSLIB.Topic({
     ros,
     name: '/task/status',
-    messageType: 'warehouser_msgs/TaskStatus',
+    messageType: 'warehouser_msgs/msg/TaskStatus',
   })
 
   taskTopic.subscribe((msg: unknown) => {
@@ -237,7 +237,7 @@ export function callService(name: string): Promise<boolean> {
     const service = new ROSLIB.Service({
       ros,
       name,
-      serviceType: 'std_srvs/Trigger',
+      serviceType: 'std_srvs/srv/Trigger',
     })
 
     service.callService(new ROSLIB.ServiceRequest({}), (response: unknown) => {
@@ -260,7 +260,7 @@ export function publishCommand(target: string) {
   const topic = new ROSLIB.Topic({
     ros,
     name: '/command/json',
-    messageType: 'std_msgs/String',
+    messageType: 'std_msgs/msg/String',
   })
 
   const message = new ROSLIB.Message({
@@ -283,7 +283,7 @@ export function publishMoveEntity(id: string, x: number, y: number) {
   const topic = new ROSLIB.Topic({
     ros,
     name: '/sim/move_entity',
-    messageType: 'std_msgs/String',
+    messageType: 'std_msgs/msg/String',
   })
 
   const message = new ROSLIB.Message({
