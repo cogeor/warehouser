@@ -133,6 +133,132 @@ class MultiAgentConfig(BaseModel):
         return v
 
 
+class ActionConfig(BaseModel):
+    """Action wrapper configuration for velocity limits and smoothing.
+
+    Controls the action transformation pipeline:
+    1. Scaling: Convert [-1, 1] policy outputs to physical velocity limits
+    2. Smoothing: EMA filter for smooth transitions
+    3. Acceleration: Enforce maximum acceleration/deceleration
+    4. Safety: Hard limits on all action dimensions
+
+    Example:
+        >>> config = ActionConfig(
+        ...     velocity_limits={"linear": 1.0, "angular": 2.0},
+        ...     smoothing_alpha=0.3,
+        ...     max_acceleration={"linear": 2.0, "angular": 4.0},
+        ... )
+    """
+
+    velocity_limits: dict[str, float] = Field(
+        default={"linear": 1.0, "angular": 2.0},
+        description="Maximum velocities: linear (m/s) and angular (rad/s)",
+    )
+    smoothing_alpha: float = Field(
+        default=0.3,
+        description="EMA smoothing factor in (0, 1]. Higher = less smoothing.",
+    )
+    max_acceleration: dict[str, float] = Field(
+        default={"linear": 2.0, "angular": 4.0},
+        description="Maximum accelerations: linear (m/s^2) and angular (rad/s^2)",
+    )
+    hard_limits: dict[str, tuple[float, float]] = Field(
+        default={
+            "linear": (-1.0, 1.0),
+            "angular": (-2.0, 2.0),
+            "pick": (-1.0, 1.0),
+            "place": (-1.0, 1.0),
+        },
+        description="Hard safety limits for each action dimension (min, max)",
+    )
+    dt: float = Field(
+        default=0.05,
+        description="Simulation timestep in seconds (default: 20 Hz)",
+    )
+
+    @field_validator("smoothing_alpha")
+    @classmethod
+    def smoothing_alpha_must_be_valid(cls, v: float) -> float:
+        """Validate smoothing alpha is in (0, 1]."""
+        if not (0.0 < v <= 1.0):
+            raise ValueError(
+                f"smoothing_alpha must be in (0, 1], got {v}. "
+                "Use 1.0 for no smoothing, lower values for more smoothing."
+            )
+        return v
+
+    @field_validator("velocity_limits")
+    @classmethod
+    def velocity_limits_must_be_valid(cls, v: dict[str, float]) -> dict[str, float]:
+        """Validate velocity limits contain required keys and positive values."""
+        required = {"linear", "angular"}
+        missing = required - set(v.keys())
+        if missing:
+            raise ValueError(
+                f"velocity_limits missing required keys: {missing}. "
+                "Must contain 'linear' and 'angular'."
+            )
+        for key in required:
+            if v[key] <= 0:
+                raise ValueError(
+                    f"velocity_limits['{key}'] must be > 0, got {v[key]}. "
+                    "Velocity limits must be positive values."
+                )
+        return v
+
+    @field_validator("max_acceleration")
+    @classmethod
+    def max_acceleration_must_be_valid(cls, v: dict[str, float]) -> dict[str, float]:
+        """Validate acceleration limits contain required keys and positive values."""
+        required = {"linear", "angular"}
+        missing = required - set(v.keys())
+        if missing:
+            raise ValueError(
+                f"max_acceleration missing required keys: {missing}. "
+                "Must contain 'linear' and 'angular'."
+            )
+        for key in required:
+            if v[key] <= 0:
+                raise ValueError(
+                    f"max_acceleration['{key}'] must be > 0, got {v[key]}. "
+                    "Acceleration limits must be positive values."
+                )
+        return v
+
+    @field_validator("hard_limits")
+    @classmethod
+    def hard_limits_must_be_valid(
+        cls, v: dict[str, tuple[float, float]]
+    ) -> dict[str, tuple[float, float]]:
+        """Validate hard limits contain required keys and valid ranges."""
+        required = {"linear", "angular", "pick", "place"}
+        missing = required - set(v.keys())
+        if missing:
+            raise ValueError(
+                f"hard_limits missing required keys: {missing}. "
+                "Must contain 'linear', 'angular', 'pick', and 'place'."
+            )
+        for key in required:
+            low, high = v[key]
+            if low >= high:
+                raise ValueError(
+                    f"hard_limits['{key}'] invalid: low ({low}) must be < high ({high}). "
+                    "Each limit must be a (min, max) tuple with min < max."
+                )
+        return v
+
+    @field_validator("dt")
+    @classmethod
+    def dt_must_be_positive(cls, v: float) -> float:
+        """Validate dt is positive."""
+        if v <= 0:
+            raise ValueError(
+                f"dt must be > 0, got {v}. "
+                "Timestep must be a positive value in seconds."
+            )
+        return v
+
+
 class EnvConfig(BaseModel):
     """Environment configuration.
 
@@ -162,6 +288,9 @@ class EnvConfig(BaseModel):
 
     # Reward config
     reward: RewardConfig = Field(default_factory=RewardConfig)
+
+    # Action wrapper config
+    action: ActionConfig = Field(default_factory=ActionConfig)
 
     @field_validator("obs_dim", "action_dim")
     @classmethod
