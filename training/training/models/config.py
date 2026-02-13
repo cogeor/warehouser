@@ -1,8 +1,24 @@
 """Pydantic configuration models for training."""
 
 import math
+from enum import IntEnum
 
 from pydantic import BaseModel, Field, field_validator
+
+
+class ObservationVersion(IntEnum):
+    """Observation space versions with their corresponding dimensions.
+
+    Each version represents a different observation format:
+    - V1_Basic: 5 dimensions - [goal_dx, goal_dy, goal_dist, goal_heading, is_carrying]
+    - V2_Lidar: 63 dimensions - [lidar_ranges(60), goal_bearing, goal_dist, is_carrying]
+    - V3_MultiRobot: 14 dimensions - Per-robot observations for multi-agent training
+      (5 ego state + 3 * 3 other robots)
+    """
+
+    V1_Basic = 5
+    V2_Lidar = 63
+    V3_MultiRobot = 14
 
 
 class RobotState(BaseModel):
@@ -97,7 +113,10 @@ class MultiAgentConfig(BaseModel):
     """Configuration for multi-agent PettingZoo environments."""
 
     num_agents: int = Field(default=2, ge=1, le=10, description="Number of agents")
-    obs_dim: int = Field(default=17, description="Observation dimension (V3 multi-robot)")
+    obs_dim: int = Field(
+        default=ObservationVersion.V3_MultiRobot,
+        description="Observation dimension (V3 multi-robot)",
+    )
     action_dim: int = Field(default=4, description="Action dimension")
     max_steps: int = Field(default=500, description="Maximum steps per episode")
     shared_reward: bool = Field(default=False, description="Use shared team reward")
@@ -115,9 +134,20 @@ class MultiAgentConfig(BaseModel):
 
 
 class EnvConfig(BaseModel):
-    """Environment configuration."""
+    """Environment configuration.
 
-    obs_dim: int = Field(default=8, description="Observation dimension")
+    Observation dimension (obs_dim) should match the ROS observation builder version:
+    - V1_Basic (5): [goal_dx, goal_dy, goal_dist, goal_heading, is_carrying]
+    - V2_Lidar (63): [lidar_ranges(60), goal_bearing, goal_dist, is_carrying]
+    - V3_MultiRobot (14): Per-robot observations for multi-agent training
+
+    Use ObservationVersion enum for clarity: obs_dim=ObservationVersion.V2_Lidar
+    """
+
+    obs_dim: int = Field(
+        default=ObservationVersion.V1_Basic,
+        description="Observation dimension (V1=5, V2=63, V3=14)",
+    )
     action_dim: int = Field(default=4, description="Action dimension")
     max_steps: int = Field(default=500, description="Maximum steps per episode")
 
@@ -217,6 +247,12 @@ class TrainingConfig(BaseModel):
     checkpoint_dir: str = Field(default="checkpoints", description="Checkpoint directory")
     log_dir: str = Field(default="logs", description="Tensorboard log directory")
 
+    # VecNormalize wrapper settings
+    norm_obs: bool = Field(default=True, description="Normalize observations")
+    norm_reward: bool = Field(default=True, description="Normalize rewards")
+    clip_obs: float = Field(default=10.0, description="Clip normalized observations")
+    clip_reward: float = Field(default=10.0, description="Clip normalized rewards")
+
     @field_validator("learning_rate")
     @classmethod
     def learning_rate_must_be_valid(cls, v: float) -> float:
@@ -293,4 +329,17 @@ class TrainingConfig(BaseModel):
                     f"{field_name}[{i}] must be > 0, got {size}. "
                     "Neural network layer sizes must be positive integers."
                 )
+        return v
+
+    @field_validator("clip_obs", "clip_reward")
+    @classmethod
+    def clip_values_must_be_positive(cls, v: float, info: object) -> float:
+        """Validate clip values are positive."""
+        field_name = getattr(info, "field_name", "clip_value")
+        if v <= 0:
+            raise ValueError(
+                f"{field_name} must be > 0, got {v}. "
+                "Clip values for VecNormalize must be positive. "
+                "Typical value: 10.0."
+            )
         return v
