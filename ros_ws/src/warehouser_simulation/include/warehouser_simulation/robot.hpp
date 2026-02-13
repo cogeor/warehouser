@@ -27,6 +27,9 @@ public:
     bool is_carrying = false;
     std::string carried_object_id;
 
+    // Collision state (set by WorldManager each step)
+    bool in_robot_collision = false;
+
     // Physical parameters
     static constexpr float kVMax = 1.0f;      // Max linear velocity (m/s)
     static constexpr float kOmegaMax = 2.0f;  // Max angular velocity (rad/s)

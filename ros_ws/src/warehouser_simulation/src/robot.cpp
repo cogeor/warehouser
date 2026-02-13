@@ -49,6 +49,7 @@ warehouser_msgs::msg::Entity Robot::toMsg() const {
     msg.omega = omega;
     msg.is_carrying = is_carrying;
     msg.carried_object_id = carried_object_id;
+    msg.in_robot_collision = in_robot_collision;
     return msg;
 }
 

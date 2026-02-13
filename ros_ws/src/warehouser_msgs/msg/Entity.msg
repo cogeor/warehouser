@@ -20,6 +20,7 @@ float32 v               # Linear velocity
 float32 omega           # Angular velocity
 bool is_carrying
 string carried_object_id
+bool in_robot_collision # True when colliding with another robot
 
 # Object-specific
 string color
