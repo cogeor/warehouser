@@ -1,3 +1,4 @@
+import { useState, useCallback } from 'react'
 import { Stage, Layer } from 'react-konva'
 import { useAppStore } from '../store/appStore'
 import { publishMoveEntity } from '../ros/connection'
@@ -8,7 +9,7 @@ import {
   CanvasZones,
   CanvasObjects,
   CanvasLidar,
-  CanvasRobot,
+  CanvasRobots,
 } from './canvas/index'
 
 const FLOOR_TILE_SIZE = 60
@@ -18,12 +19,31 @@ export function Canvas() {
   const lidarRanges = useAppStore((s) => s.lidarRanges)
   const lidarAngleMin = useAppStore((s) => s.lidarAngleMin)
   const lidarAngleMax = useAppStore((s) => s.lidarAngleMax)
+  const selectedRobotId = useAppStore((s) => s.selectedRobotId)
+  const setSelectedRobotId = useAppStore((s) => s.setSelectedRobotId)
+
+  // Pan state for dragging the canvas
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+
+  // Reset pan to origin (exported for future use by MapPanel)
+  const resetPan = useCallback(() => {
+    setPan({ x: 0, y: 0 })
+  }, [])
+
+  // Expose resetPan on window for debugging/future integration
+  // TODO: Replace with ref/context when MapPanel needs access
+  if (typeof window !== 'undefined') {
+    ;(window as unknown as { __canvasResetPan?: () => void }).__canvasResetPan = resetPan
+  }
 
   // Filter entities by type
-  const robot = entities.find((e) => e.type === 'robot')
+  const robots = entities.filter((e) => e.type === 'robot')
   const objects = entities.filter((e) => e.type === 'object')
   const walls = entities.filter((e) => e.type === 'wall')
   const zones = entities.filter((e) => e.type === 'zone')
+
+  // Get selected robot for lidar (default to first robot if none selected)
+  const selectedRobot = robots.find((r) => r.id === selectedRobotId) ?? robots[0]
 
   // Compute scale from config values
   const scale = CANVAS_CONFIG.CANVAS_SIZE / CANVAS_CONFIG.WORLD_SIZE
@@ -38,6 +58,15 @@ export function Canvas() {
       width={CANVAS_CONFIG.CANVAS_SIZE}
       height={CANVAS_CONFIG.CANVAS_SIZE}
       className="border border-gray-600 bg-gray-900"
+      draggable
+      x={pan.x}
+      y={pan.y}
+      onDragEnd={(e) => {
+        setPan({
+          x: e.target.x(),
+          y: e.target.y(),
+        })
+      }}
     >
       <Layer>
         {/* Floor tiles */}
@@ -70,11 +99,11 @@ export function Canvas() {
         />
 
         {/* Lidar visualization */}
-        {robot && (
+        {selectedRobot && (
           <CanvasLidar
-            robotX={robot.x}
-            robotY={robot.y}
-            robotTheta={robot.theta ?? 0}
+            robotX={selectedRobot.x}
+            robotY={selectedRobot.y}
+            robotTheta={selectedRobot.theta ?? 0}
             ranges={lidarRanges}
             angleMin={lidarAngleMin}
             angleMax={lidarAngleMax}
@@ -83,14 +112,14 @@ export function Canvas() {
           />
         )}
 
-        {/* Robot */}
-        {robot && (
-          <CanvasRobot
-            robot={robot}
-            scale={scale}
-            canvasSize={CANVAS_CONFIG.CANVAS_SIZE}
-          />
-        )}
+        {/* Robots */}
+        <CanvasRobots
+          robots={robots}
+          selectedRobotId={selectedRobotId}
+          onRobotSelect={setSelectedRobotId}
+          scale={scale}
+          canvasSize={CANVAS_CONFIG.CANVAS_SIZE}
+        />
       </Layer>
     </Stage>
   )

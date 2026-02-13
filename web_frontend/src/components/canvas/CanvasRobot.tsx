@@ -1,10 +1,10 @@
 import type { LegacyRef } from 'react'
-import { Image, Circle, Arrow } from 'react-konva'
+import { Image, Circle, Arrow, Group } from 'react-konva'
 import Konva from 'konva'
 import { Entity } from '../../store/appStore'
 import { CoordinateTransform } from '../../utils/transforms'
 import { useSprite } from '../../hooks/useSprite'
-import { useEntityAnimation } from '../../hooks/useEntityAnimation'
+import { useMultipleEntityAnimations } from '../../hooks/useEntityAnimation'
 import { ROBOT_SPRITE } from '../../assets/sprites'
 
 /**
@@ -13,11 +13,25 @@ import { ROBOT_SPRITE } from '../../assets/sprites'
 const DEFAULT_ROBOT_SIZE_PIXELS = 40
 
 /**
- * Props for the CanvasRobot component.
+ * Stroke width for selected robot highlight
  */
-interface CanvasRobotProps {
-  /** Robot entity to render */
-  robot: Entity
+const SELECTED_STROKE_WIDTH = 4
+
+/**
+ * Stroke width for normal robots
+ */
+const NORMAL_STROKE_WIDTH = 2
+
+/**
+ * Props for the CanvasRobots component.
+ */
+export interface CanvasRobotsProps {
+  /** Array of robot entities to render */
+  robots: Entity[]
+  /** ID of the currently selected robot */
+  selectedRobotId?: string | null
+  /** Callback when a robot is clicked */
+  onRobotSelect?: (id: string) => void
   /** Scale factor (pixels per meter) */
   scale: number
   /** Total canvas size in pixels */
@@ -27,133 +41,150 @@ interface CanvasRobotProps {
 }
 
 /**
- * Renders a robot entity on the canvas with sprite or fallback rendering.
+ * Renders multiple robot entities on the canvas with sprite or fallback rendering.
  *
  * Features:
  * - Loads and displays ROBOT_SPRITE when available
  * - Falls back to circle with direction arrow if sprite fails to load
- * - Smooth animation between positions using useEntityAnimation
+ * - Smooth animation between positions using useMultipleEntityAnimations
  * - Orange ring indicator when robot is carrying an object
+ * - Highlights selected robot with thicker stroke
+ * - Click handler to select robots
  *
  * @example
  * ```tsx
- * const robot = entities.find(e => e.type === 'robot');
- * if (robot) {
- *   return (
- *     <CanvasRobot
- *       robot={robot}
- *       scale={60}
- *       canvasSize={600}
- *     />
- *   );
- * }
+ * const robots = entities.filter(e => e.type === 'robot');
+ * return (
+ *   <CanvasRobots
+ *     robots={robots}
+ *     selectedRobotId={selectedRobotId}
+ *     onRobotSelect={(id) => setSelectedRobotId(id)}
+ *     scale={60}
+ *     canvasSize={600}
+ *   />
+ * );
  * ```
  */
-export function CanvasRobot({
-  robot,
+export function CanvasRobots({
+  robots,
+  selectedRobotId,
+  onRobotSelect,
   scale,
   canvasSize,
   robotSizePixels = DEFAULT_ROBOT_SIZE_PIXELS,
-}: CanvasRobotProps) {
+}: CanvasRobotsProps) {
   const robotImage = useSprite(ROBOT_SPRITE)
 
   // Create coordinate transformer
   const worldSize = canvasSize / scale
   const transform = new CoordinateTransform(worldSize, canvasSize)
 
-  // Convert world coordinates to canvas coordinates
-  const [canvasX, canvasY] = transform.worldToCanvas(robot.x, robot.y)
-  const rotation = transform.worldThetaToCanvasRotation(robot.theta ?? 0)
+  // Build animation targets map for all robots
+  const animationTargets = new Map(
+    robots.map((robot) => {
+      const [canvasX, canvasY] = transform.worldToCanvas(robot.x, robot.y)
+      const rotation = transform.worldThetaToCanvasRotation(robot.theta ?? 0)
+      return [robot.id, { x: canvasX, y: canvasY, rotation }]
+    })
+  )
 
-  // Animate robot position and rotation
-  const robotRef = useEntityAnimation<Konva.Image>({
-    x: canvasX,
-    y: canvasY,
-    rotation,
-  })
-
-  // Animate carrying indicator
-  const carryIndicatorRef = useEntityAnimation<Konva.Circle>({
-    x: canvasX,
-    y: canvasY,
-  })
-
-  // Animate fallback circle
-  const fallbackCircleRef = useEntityAnimation<Konva.Circle>({
-    x: canvasX,
-    y: canvasY,
-  })
-
-  // Animate direction arrow
-  const directionArrowRef = useEntityAnimation<Konva.Arrow>({
-    x: canvasX,
-    y: canvasY,
-  })
+  // Get refs for animating all robots
+  const { getRef } = useMultipleEntityAnimations<Konva.Group>(animationTargets)
 
   // Calculate fallback rendering values
   const fallbackRadius = 0.3 * scale
   const arrowLength = 0.4 * scale
 
-  // Calculate arrow direction in canvas coordinates
-  // In canvas coords (Y-down), we negate theta and offset by PI/2
-  const arrowDirX = Math.cos(-robot.theta! + Math.PI / 2) * arrowLength
-  const arrowDirY = Math.sin(-robot.theta! + Math.PI / 2) * arrowLength
-
-  if (robotImage) {
-    // Render with sprite
-    return (
-      <>
-        <Image
-          ref={robotRef as unknown as LegacyRef<Konva.Image>}
-          image={robotImage}
-          x={canvasX}
-          y={canvasY}
-          width={robotSizePixels}
-          height={robotSizePixels}
-          offsetX={robotSizePixels / 2}
-          offsetY={robotSizePixels / 2}
-          rotation={rotation}
-        />
-        {/* Carrying indicator - orange ring when robot is carrying an object */}
-        {robot.isCarrying && (
-          <Circle
-            ref={carryIndicatorRef as unknown as LegacyRef<Konva.Circle>}
-            x={canvasX}
-            y={canvasY}
-            radius={robotSizePixels / 2 + 4}
-            fill="transparent"
-            stroke="#f59e0b"
-            strokeWidth={3}
-          />
-        )}
-      </>
-    )
-  }
-
-  // Fallback rendering - circle with direction arrow
   return (
     <>
-      <Circle
-        ref={fallbackCircleRef as unknown as LegacyRef<Konva.Circle>}
-        x={canvasX}
-        y={canvasY}
-        radius={fallbackRadius}
-        fill={robot.isCarrying ? '#f59e0b' : '#60a5fa'}
-        stroke="#fff"
-        strokeWidth={2}
-      />
-      {/* Direction arrow pointing in robot's heading direction */}
-      <Arrow
-        ref={directionArrowRef as unknown as LegacyRef<Konva.Arrow>}
-        x={canvasX}
-        y={canvasY}
-        points={[0, 0, arrowDirX, arrowDirY]}
-        pointerLength={8}
-        pointerWidth={6}
-        fill="#fff"
-        stroke="#fff"
-        strokeWidth={2}
-      />
+      {robots.map((robot) => {
+        const [canvasX, canvasY] = transform.worldToCanvas(robot.x, robot.y)
+        const rotation = transform.worldThetaToCanvasRotation(robot.theta ?? 0)
+        const isSelected = robot.id === selectedRobotId
+
+        // Calculate arrow direction in canvas coordinates
+        // In canvas coords (Y-down), we negate theta and offset by PI/2
+        const arrowDirX = Math.cos(-robot.theta! + Math.PI / 2) * arrowLength
+        const arrowDirY = Math.sin(-robot.theta! + Math.PI / 2) * arrowLength
+
+        const handleClick = () => {
+          if (onRobotSelect) {
+            onRobotSelect(robot.id)
+          }
+        }
+
+        if (robotImage) {
+          // Render with sprite
+          return (
+            <Group
+              key={robot.id}
+              ref={getRef(robot.id) as unknown as LegacyRef<Konva.Group>}
+              x={canvasX}
+              y={canvasY}
+              rotation={rotation}
+              onClick={handleClick}
+              onTap={handleClick}
+            >
+              <Image
+                image={robotImage}
+                width={robotSizePixels}
+                height={robotSizePixels}
+                offsetX={robotSizePixels / 2}
+                offsetY={robotSizePixels / 2}
+              />
+              {/* Selection highlight - cyan glow ring for selected robot */}
+              {isSelected && (
+                <Circle
+                  radius={robotSizePixels / 2 + 6}
+                  fill="transparent"
+                  stroke="#22d3ee"
+                  strokeWidth={SELECTED_STROKE_WIDTH}
+                />
+              )}
+              {/* Carrying indicator - orange ring when robot is carrying an object */}
+              {robot.isCarrying && (
+                <Circle
+                  radius={robotSizePixels / 2 + 4}
+                  fill="transparent"
+                  stroke="#f59e0b"
+                  strokeWidth={3}
+                />
+              )}
+            </Group>
+          )
+        }
+
+        // Fallback rendering - circle with direction arrow
+        return (
+          <Group
+            key={robot.id}
+            ref={getRef(robot.id) as unknown as LegacyRef<Konva.Group>}
+            x={canvasX}
+            y={canvasY}
+            onClick={handleClick}
+            onTap={handleClick}
+          >
+            <Circle
+              radius={fallbackRadius}
+              fill={robot.isCarrying ? '#f59e0b' : '#60a5fa'}
+              stroke={isSelected ? '#22d3ee' : '#fff'}
+              strokeWidth={isSelected ? SELECTED_STROKE_WIDTH : NORMAL_STROKE_WIDTH}
+            />
+            {/* Direction arrow pointing in robot's heading direction */}
+            <Arrow
+              points={[0, 0, arrowDirX, arrowDirY]}
+              pointerLength={8}
+              pointerWidth={6}
+              fill="#fff"
+              stroke="#fff"
+              strokeWidth={2}
+            />
+          </Group>
+        )
+      })}
     </>
   )
 }
+
+// Re-export for backward compatibility during transition
+export { CanvasRobots as CanvasRobot }
