@@ -12,7 +12,10 @@ training/checkpoints/
 node_modules/
 
 # Coverage
+.coverage
 *.coverage
 coverage.xml
 htmlcov/
 .coverage.*
+.dreamstate/
+*.pyc
