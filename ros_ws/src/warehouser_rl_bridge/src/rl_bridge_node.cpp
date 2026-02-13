@@ -46,13 +46,12 @@ RLBridgeNode::RLBridgeNode(const rclcpp::NodeOptions& options)
         std::bind(&RLBridgeNode::goalCallback, this, std::placeholders::_1));
 
     // Create publishers
-    cmd_pub_ = create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
-    pick_pub_ = create_publisher<std_msgs::msg::Empty>("/sim/pick", 10);
-    unpick_pub_ = create_publisher<std_msgs::msg::Empty>("/sim/unpick", 10);
+    // Initialize per-robot publishers for default single robot
+    initializeRobotPublishers(1);
     goal_pub_ = create_publisher<warehouser_msgs::msg::Goal>("/task/goal", 10);
 
     // Create service clients
-    reset_client_ = create_client<std_srvs::srv::Trigger>("/sim/reset");
+    reset_client_ = create_client<warehouser_msgs::srv::SimReset>("/sim/reset");
     step_client_ = create_client<warehouser_msgs::srv::SimStep>("/sim/step");
     obs_client_ =
         create_client<warehouser_msgs::srv::GetObservation>("/observations/get");
@@ -138,7 +137,13 @@ void RLBridgeNode::handleRLReset(
     }
 
     // Configure robot count (minimum 1 for backward compatibility)
-    robot_count_ = static_cast<size_t>(std::max(1, request->robot_count));
+    size_t new_robot_count = static_cast<size_t>(std::max(1, request->robot_count));
+
+    // Initialize per-robot publishers if count changed
+    if (new_robot_count != robot_count_) {
+        initializeRobotPublishers(new_robot_count);
+    }
+    robot_count_ = new_robot_count;
 
     // Reset simulation with N robots
     resetSimulation(static_cast<int>(robot_count_));
@@ -188,31 +193,51 @@ void RLBridgeNode::handleRLReset(
                      "\", \"robot_count\": " + std::to_string(robot_count_) + "}";
 }
 
+void RLBridgeNode::initializeRobotPublishers(size_t count) {
+    // Clear existing publishers
+    cmd_vel_pubs_.clear();
+    pick_pubs_.clear();
+    unpick_pubs_.clear();
+
+    // Create per-robot publishers
+    for (size_t i = 0; i < count; ++i) {
+        std::string prefix = "/robot" + std::to_string(i);
+
+        cmd_vel_pubs_.push_back(
+            create_publisher<geometry_msgs::msg::Twist>(prefix + "/cmd_vel", 10));
+        pick_pubs_.push_back(
+            create_publisher<std_msgs::msg::Empty>(prefix + "/sim/pick", 10));
+        unpick_pubs_.push_back(
+            create_publisher<std_msgs::msg::Empty>(prefix + "/sim/unpick", 10));
+    }
+
+    RCLCPP_INFO(get_logger(), "Initialized publishers for %zu robots", count);
+}
+
 void RLBridgeNode::sendAction(size_t robot_id, float linear, float angular,
                                float pick, float place) {
-    // Velocity command
-    // TODO: For multi-robot, need per-robot cmd_vel topics or action message
-    // For now, use robot_id 0 for backward compatibility
-    if (robot_id == 0) {
-        geometry_msgs::msg::Twist cmd;
-        cmd.linear.x = linear;
-        cmd.angular.z = angular;
-        cmd_pub_->publish(cmd);
+    // Validate robot_id against publisher count
+    if (robot_id >= cmd_vel_pubs_.size()) {
+        RCLCPP_WARN(get_logger(),
+            "Invalid robot_id %zu for sendAction (publisher count: %zu)",
+            robot_id, cmd_vel_pubs_.size());
+        return;
+    }
 
-        // Pick action (threshold at 0.5)
-        if (pick > 0.5f) {
-            pick_pub_->publish(std_msgs::msg::Empty());
-        }
+    // Velocity command to per-robot topic
+    geometry_msgs::msg::Twist cmd;
+    cmd.linear.x = linear;
+    cmd.angular.z = angular;
+    cmd_vel_pubs_[robot_id]->publish(cmd);
 
-        // Place action (threshold at 0.5)
-        if (place > 0.5f) {
-            unpick_pub_->publish(std_msgs::msg::Empty());
-        }
-    } else {
-        // Multi-robot: would publish to /robot_{id}/cmd_vel etc.
-        // For now, log warning
-        RCLCPP_WARN_ONCE(get_logger(),
-            "Multi-robot actions not yet routed to per-robot topics");
+    // Pick action (threshold at 0.5)
+    if (pick > 0.5f) {
+        pick_pubs_[robot_id]->publish(std_msgs::msg::Empty());
+    }
+
+    // Place action (threshold at 0.5)
+    if (place > 0.5f) {
+        unpick_pubs_[robot_id]->publish(std_msgs::msg::Empty());
     }
 }
 
@@ -239,13 +264,22 @@ void RLBridgeNode::resetSimulation(int robot_count) {
         return;
     }
 
-    // TODO: Pass robot_count to simulation reset if multi-robot sim is supported
-    // For now, use standard reset (single robot compatible)
-    (void)robot_count;  // Suppress unused warning
+    // Use SimReset service to spawn requested number of robots
+    auto request = std::make_shared<warehouser_msgs::srv::SimReset::Request>();
+    request->robot_count = robot_count;
 
-    auto request = std::make_shared<std_srvs::srv::Trigger::Request>();
     auto future = reset_client_->async_send_request(request);
-    rclcpp::spin_until_future_complete(shared_from_this(), future, 1s);
+    if (rclcpp::spin_until_future_complete(shared_from_this(), future, 1s) ==
+        rclcpp::FutureReturnCode::SUCCESS) {
+        auto result = future.get();
+        if (result->success) {
+            RCLCPP_INFO(get_logger(), "Simulation reset with %d robots",
+                        result->actual_robot_count);
+        } else {
+            RCLCPP_WARN(get_logger(), "Simulation reset failed: %s",
+                        result->message.c_str());
+        }
+    }
 }
 
 warehouser_msgs::msg::Observation RLBridgeNode::getObservation(size_t robot_id) {

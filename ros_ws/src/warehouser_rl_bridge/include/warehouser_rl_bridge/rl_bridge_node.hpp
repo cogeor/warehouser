@@ -9,6 +9,8 @@
 #include <std_msgs/msg/empty.hpp>
 #include <std_srvs/srv/trigger.hpp>
 
+#include "warehouser_msgs/srv/sim_reset.hpp"
+
 #include "warehouser_msgs/msg/goal.hpp"
 #include "warehouser_msgs/msg/observation.hpp"
 #include "warehouser_msgs/msg/world_state.hpp"
@@ -47,6 +49,7 @@ private:
     void resetSimulation(int robot_count);
     warehouser_msgs::msg::Observation getObservation(size_t robot_id);
     void setRandomGoal();
+    void initializeRobotPublishers(size_t count);
 
     // Multi-robot configuration
     size_t robot_count_ = 1;
@@ -71,14 +74,14 @@ private:
     rclcpp::Subscription<warehouser_msgs::msg::WorldState>::SharedPtr world_sub_;
     rclcpp::Subscription<warehouser_msgs::msg::Goal>::SharedPtr goal_sub_;
 
-    // Publishers
-    rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_pub_;
-    rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr pick_pub_;
-    rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr unpick_pub_;
+    // Publishers (per-robot vectors for multi-robot support)
+    std::vector<rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr> cmd_vel_pubs_;
+    std::vector<rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr> pick_pubs_;
+    std::vector<rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr> unpick_pubs_;
     rclcpp::Publisher<warehouser_msgs::msg::Goal>::SharedPtr goal_pub_;
 
     // Service clients
-    rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr reset_client_;
+    rclcpp::Client<warehouser_msgs::srv::SimReset>::SharedPtr reset_client_;
     rclcpp::Client<warehouser_msgs::srv::SimStep>::SharedPtr step_client_;
     rclcpp::Client<warehouser_msgs::srv::GetObservation>::SharedPtr obs_client_;
 
