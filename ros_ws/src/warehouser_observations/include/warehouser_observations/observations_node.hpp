@@ -45,9 +45,9 @@ private:
     // Find robot in current world state
     const warehouser_msgs::msg::Entity* findRobot() const;
 
-    // Core components
-    ObservationBuilder builder_;
+    // Core components (lidar_ must precede builder_ for initialization order)
     LidarSimulator lidar_;
+    ObservationBuilder builder_;
     OdometrySimulator odom_;
 
     // Cached state (updated by subscribers)

@@ -20,19 +20,19 @@ ObservationsNode::ObservationsNode(const rclcpp::NodeOptions& options)
     odom_rate_ = declare_parameter("odom_rate", 50.0);
     bool odom_add_noise = declare_parameter("odom_add_noise", false);
 
-    // Initialize observation builder
-    ObservationConfig obs_config;
-    obs_config.version = static_cast<ObservationVersion>(version);
-    obs_config.world_size = static_cast<float>(world_size);
-    builder_ = ObservationBuilder(obs_config);
-
-    // Initialize lidar simulator
+    // Initialize lidar simulator first (builder_ depends on it)
     LidarConfig lidar_config;
     lidar_config.num_rays = lidar_num_rays;
     lidar_config.fov = static_cast<float>(lidar_fov);
     lidar_config.max_range = static_cast<float>(lidar_max_range);
     lidar_config.min_range = static_cast<float>(lidar_min_range);
     lidar_ = LidarSimulator(lidar_config);
+
+    // Initialize observation builder with lidar pointer for V2 observations
+    ObservationConfig obs_config;
+    obs_config.version = static_cast<ObservationVersion>(version);
+    obs_config.world_size = static_cast<float>(world_size);
+    builder_ = ObservationBuilder(obs_config, &lidar_);
 
     // Initialize odometry simulator
     OdometryConfig odom_config;
