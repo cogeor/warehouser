@@ -2,10 +2,16 @@
 
 #include <cmath>
 
+#include "warehouser_observations/lidar_simulator.hpp"
+
 namespace warehouser {
 
 ObservationBuilder::ObservationBuilder(const ObservationConfig& config)
     : config_(config) {}
+
+ObservationBuilder::ObservationBuilder(const ObservationConfig& config,
+                                       const LidarSimulator* lidar)
+    : config_(config), lidar_(lidar) {}
 
 warehouser_msgs::msg::Observation ObservationBuilder::build(
     const warehouser_msgs::msg::WorldState& world,
@@ -15,9 +21,7 @@ warehouser_msgs::msg::Observation ObservationBuilder::build(
         case ObservationVersion::V1_Position:
             return buildV1(world, goal, robot_index);
         case ObservationVersion::V2_Lidar:
-            // V2 would be implemented similarly with lidar data
-            // For now, fall back to V1
-            return buildV1(world, goal, robot_index);
+            return buildV2(world, goal, robot_index);
         case ObservationVersion::V3_MultiRobot:
             return buildV3(world, goal, robot_index);
         default:
@@ -28,14 +32,14 @@ warehouser_msgs::msg::Observation ObservationBuilder::build(
 size_t ObservationBuilder::observationDim() const {
     switch (config_.version) {
         case ObservationVersion::V1_Position:
-            return 8;
+            return 5;
         case ObservationVersion::V2_Lidar:
             return 63;  // 60 lidar + 3 (bearing, dist, carrying)
         case ObservationVersion::V3_MultiRobot:
-            // 8 (ego state) + 3 * max_other_robots (rel_x, rel_y, rel_theta)
-            return 8 + 3 * config_.max_other_robots;
+            // 5 (ego state) + 3 * max_other_robots (rel_x, rel_y, rel_theta)
+            return 5 + 3 * config_.max_other_robots;
         default:
-            return 8;
+            return 5;
     }
 }
 
@@ -45,7 +49,7 @@ warehouser_msgs::msg::Observation ObservationBuilder::buildV1(
     size_t robot_index) const {
     warehouser_msgs::msg::Observation obs;
     obs.version = static_cast<int32_t>(ObservationVersion::V1_Position);
-    obs.data.resize(8, 0.0f);
+    obs.data.resize(5, 0.0f);
 
     // Find robot in world state by index
     const auto* robot = findRobotByIndex(world, robot_index);
@@ -53,30 +57,64 @@ warehouser_msgs::msg::Observation ObservationBuilder::buildV1(
         return obs;  // Return zeros if no robot found
     }
 
-    // Robot position and heading
-    obs.data[0] = robot->x;
-    obs.data[1] = robot->y;
-    obs.data[2] = robot->theta;
-
-    // Goal relative to robot
+    // Goal relative to robot (ego-centric)
     float dx = goal.x - robot->x;
     float dy = goal.y - robot->y;
-    obs.data[3] = dx;
-    obs.data[4] = dy;
+    obs.data[0] = dx;
+    obs.data[1] = dy;
 
     // Distance to goal
     float dist = std::sqrt(dx * dx + dy * dy);
-    obs.data[5] = dist;
+    obs.data[2] = dist;
 
     // Goal heading in robot frame
     // World angle to goal
     float world_angle = std::atan2(dy, dx);
     // Relative to robot heading
     float heading = normalizeAngle(world_angle - robot->theta);
-    obs.data[6] = heading;
+    obs.data[3] = heading;
 
     // Carrying flag
-    obs.data[7] = robot->is_carrying ? 1.0f : 0.0f;
+    obs.data[4] = robot->is_carrying ? 1.0f : 0.0f;
+
+    return obs;
+}
+
+warehouser_msgs::msg::Observation ObservationBuilder::buildV2(
+    const warehouser_msgs::msg::WorldState& world,
+    const warehouser_msgs::msg::Goal& goal,
+    size_t robot_index) const {
+    warehouser_msgs::msg::Observation obs;
+    obs.version = static_cast<int32_t>(ObservationVersion::V2_Lidar);
+    obs.data.resize(63, 0.0f);  // 60 lidar + 3 (bearing, dist, carrying)
+
+    // Find robot in world state by index
+    const auto* robot = findRobotByIndex(world, robot_index);
+    if (!robot) {
+        return obs;  // Return zeros if no robot found
+    }
+
+    // Get lidar scan (first 60 dims)
+    if (lidar_) {
+        auto ranges = lidar_->scan(robot->x, robot->y, robot->theta, world);
+        for (size_t i = 0; i < ranges.size() && i < 60; ++i) {
+            obs.data[i] = ranges[i];
+        }
+    }
+
+    // Goal bearing in robot frame (dim 60)
+    float dx = goal.x - robot->x;
+    float dy = goal.y - robot->y;
+    float world_angle = std::atan2(dy, dx);
+    float bearing = normalizeAngle(world_angle - robot->theta);
+    obs.data[60] = bearing;
+
+    // Goal distance (dim 61)
+    float dist = std::sqrt(dx * dx + dy * dy);
+    obs.data[61] = dist;
+
+    // Carrying flag (dim 62)
+    obs.data[62] = robot->is_carrying ? 1.0f : 0.0f;
 
     return obs;
 }
@@ -95,24 +133,20 @@ warehouser_msgs::msg::Observation ObservationBuilder::buildV3(
         return obs;  // Return zeros if no robot found
     }
 
-    // First 8 dims: ego state (same as V1)
-    obs.data[0] = ego->x;
-    obs.data[1] = ego->y;
-    obs.data[2] = ego->theta;
-
+    // First 5 dims: ego state (same as V1, ego-centric)
     float dx = goal.x - ego->x;
     float dy = goal.y - ego->y;
-    obs.data[3] = dx;
-    obs.data[4] = dy;
+    obs.data[0] = dx;
+    obs.data[1] = dy;
 
     float dist = std::sqrt(dx * dx + dy * dy);
-    obs.data[5] = dist;
+    obs.data[2] = dist;
 
     float world_angle = std::atan2(dy, dx);
     float heading = normalizeAngle(world_angle - ego->theta);
-    obs.data[6] = heading;
+    obs.data[3] = heading;
 
-    obs.data[7] = ego->is_carrying ? 1.0f : 0.0f;
+    obs.data[4] = ego->is_carrying ? 1.0f : 0.0f;
 
     // Remaining dims: relative positions of other robots
     auto others = findOtherRobots(world, robot_index);
@@ -120,7 +154,7 @@ warehouser_msgs::msg::Observation ObservationBuilder::buildV3(
     float sin_ego = std::sin(-ego->theta);
 
     for (size_t i = 0; i < config_.max_other_robots; ++i) {
-        size_t base = 8 + i * 3;
+        size_t base = 5 + i * 3;
         if (i < others.size()) {
             const auto* other = others[i];
             // World-frame delta
