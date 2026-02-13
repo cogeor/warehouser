@@ -1,0 +1,51 @@
+name: ROS2 CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ros_ws/**'
+      - '.github/workflows/ros2-ci.yaml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'ros_ws/**'
+      - '.github/workflows/ros2-ci.yaml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build & Test (Jazzy)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build and test ROS2 packages
+        uses: ros-tooling/action-ros-ci@v0.3
+        with:
+          target-ros2-distro: jazzy
+          package-name: >-
+            warehouser_msgs
+            warehouser_simulation
+            warehouser_observations
+            warehouser_rl_bridge
+            warehouser_inference
+            warehouser_safety
+            warehouser_task
+            warehouser_command
+            warehouser_bringup
+          vcs-repo-file-url: ''
+          colcon-defaults: |
+            {
+              "build": {
+                "cmake-args": ["-DBUILD_TESTING=ON"]
+              },
+              "test": {
+                "ctest-args": ["-E", "(integration|copyright|cpplint|flake8|pep257|uncrustify|cppcheck|lint_cmake|xmllint)"]
+              }
+            }
+          extra-cmake-args: -DCMAKE_CXX_STANDARD=23
