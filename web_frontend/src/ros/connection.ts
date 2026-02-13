@@ -1,3 +1,14 @@
+/**
+ * @deprecated This module is deprecated and will be removed in a future version.
+ *
+ * Please migrate to the new modular ROS connection system:
+ * - RosConnection class: import from './RosConnection'
+ * - Topic subscriptions: import from './subscriptions'
+ * - React hooks: import from '../hooks/useRosConnection'
+ *
+ * This module is kept for backwards compatibility during migration.
+ */
+
 import ROSLIB from 'roslib'
 import { useAppStore, Entity } from '../store/appStore'
 
@@ -15,6 +26,10 @@ const RECONNECT_CONFIG = {
 
 /**
  * Calculate exponential backoff delay with jitter
+ *
+ * @deprecated Use RosConnection class from './RosConnection' instead.
+ * The RosConnection class handles backoff internally.
+ * This function will be removed in a future version.
  */
 export function calculateBackoffDelay(attempt: number): number {
   // Exponential backoff: baseDelay * factor^attempt
@@ -76,6 +91,10 @@ function resetReconnectionState() {
 
 /**
  * Manual retry connection (for user-initiated retry)
+ *
+ * @deprecated Use RosConnection class from './RosConnection' instead.
+ * Call rosConnection.connect() to initiate or retry connection.
+ * This function will be removed in a future version.
  */
 export function retryConnection() {
   const store = useAppStore.getState()
@@ -94,6 +113,14 @@ export function retryConnection() {
   }
 }
 
+/**
+ * Initialize the ROS connection
+ *
+ * @deprecated Use RosConnection class from './RosConnection' instead.
+ * Create a new RosConnection instance and call connect().
+ * For React components, use the useRosConnection hook from '../hooks/useRosConnection'.
+ * This function will be removed in a future version.
+ */
 export function initRosConnection() {
   const store = useAppStore.getState()
 
@@ -193,6 +220,13 @@ function subscribeToTopics() {
   })
 }
 
+/**
+ * Call a ROS service
+ *
+ * @deprecated Use RosConnection class from './RosConnection' instead.
+ * Use rosConnection.callService() for service calls.
+ * This function will be removed in a future version.
+ */
 export function callService(name: string): Promise<boolean> {
   return new Promise((resolve) => {
     if (!ros) {
@@ -213,6 +247,13 @@ export function callService(name: string): Promise<boolean> {
   })
 }
 
+/**
+ * Publish a command to the /command/json topic
+ *
+ * @deprecated Use RosConnection class from './RosConnection' instead.
+ * Use rosConnection.publish() for publishing messages.
+ * This function will be removed in a future version.
+ */
 export function publishCommand(target: string) {
   if (!ros) return
 
@@ -229,6 +270,13 @@ export function publishCommand(target: string) {
   topic.publish(message)
 }
 
+/**
+ * Publish a move entity command to the /sim/move_entity topic
+ *
+ * @deprecated Use RosConnection class from './RosConnection' instead.
+ * Use rosConnection.publish() for publishing messages.
+ * This function will be removed in a future version.
+ */
 export function publishMoveEntity(id: string, x: number, y: number) {
   if (!ros) return
 
