@@ -42,6 +42,7 @@ install(TARGETS safety_node
 )
 
 install(TARGETS ${PROJECT_NAME}_lib
+  EXPORT ${PROJECT_NAME}_libTargets
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
@@ -54,6 +55,11 @@ install(DIRECTORY include/
 install(DIRECTORY config launch
   DESTINATION share/${PROJECT_NAME}
 )
+
+# Export library for downstream packages
+ament_export_targets(${PROJECT_NAME}_libTargets HAS_LIBRARY_TARGET)
+ament_export_dependencies(rclcpp std_msgs geometry_msgs warehouser_msgs)
+ament_export_include_directories(include)
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)

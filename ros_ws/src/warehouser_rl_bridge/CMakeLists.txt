@@ -20,6 +20,7 @@ find_package(std_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(warehouser_msgs REQUIRED)
+find_package(warehouser_safety REQUIRED)
 
 # Library with reward calculator and strategies
 add_library(${PROJECT_NAME}_lib SHARED
@@ -46,6 +47,7 @@ ament_target_dependencies(rl_bridge_node
   std_srvs
   geometry_msgs
   warehouser_msgs
+  warehouser_safety
 )
 
 # Tests
@@ -68,6 +70,12 @@ if(BUILD_TESTING)
 
   ament_add_gtest(test_multi_robot test/test_multi_robot.cpp)
   target_link_libraries(test_multi_robot ${PROJECT_NAME}_lib)
+
+  ament_add_gtest(test_action_safety test/test_action_safety.cpp)
+  target_link_libraries(test_action_safety ${PROJECT_NAME}_lib)
+  ament_target_dependencies(test_action_safety
+    warehouser_safety
+  )
 
   # Integration tests (require nodes to be running)
   ament_add_gtest(test_rl_bridge_integration test/integration/test_rl_bridge_node.cpp)
