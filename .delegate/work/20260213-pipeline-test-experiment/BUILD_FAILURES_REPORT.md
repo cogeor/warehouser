@@ -201,6 +201,39 @@ All issues were trivial to fix but should have been caught automatically.
 
 ---
 
+## Issue 7: ROS2 Message Type Format in Frontend
+
+**Files:** `web_frontend/src/ros/subscriptions.ts`, `connection.ts`, `hooks/useRosTopic.ts`
+
+**Error:**
+Frontend connects to rosbridge but immediately disconnects. No data flows.
+
+**Root Cause:**
+ROS2 rosbridge requires message types in format `package/msg/Type` or `package/srv/Type`, not `package/Type`.
+
+**Examples:**
+- Wrong: `warehouser_msgs/WorldState`
+- Correct: `warehouser_msgs/msg/WorldState`
+
+- Wrong: `std_srvs/Trigger`
+- Correct: `std_srvs/srv/Trigger`
+
+**Fix:**
+Updated all message type strings to use `/msg/` or `/srv/` format.
+
+**Why Tests Didn't Catch This:**
+
+| Gap | Explanation |
+|-----|-------------|
+| **No frontend integration tests** | No tests that actually connect to rosbridge |
+| **ROS1 vs ROS2 difference** | ROS1 doesn't require `/msg/`, only ROS2 does |
+| **Silent failure** | rosbridge doesn't log clear error for wrong message type |
+| **Manual browser testing only** | No automated end-to-end tests |
+
+**This is a documentation gap:** The ROS2 rosbridge message type format isn't well documented for frontend developers.
+
+---
+
 ## Issue 4: Test Code Uses Non-Existent Message Fields
 
 **File:** `ros_ws/src/warehouser_observations/test/test_observation_builder.cpp:245-246,332-333`
