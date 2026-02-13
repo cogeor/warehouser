@@ -23,6 +23,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/SimStep.srv"
   "srv/GetObservation.srv"
   "srv/SetGoal.srv"
+  "srv/SimReset.srv"
   DEPENDENCIES std_msgs
 )
 

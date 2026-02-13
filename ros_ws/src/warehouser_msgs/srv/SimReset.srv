@@ -1,0 +1,10 @@
+# SimReset.srv
+# Reset the simulation with configurable robot count
+
+# Request
+int32 robot_count 1       # Number of robots to spawn (default 1 for backward compatibility)
+---
+# Response
+bool success
+int32 actual_robot_count  # Actual number of robots spawned
+string message

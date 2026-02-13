@@ -134,7 +134,7 @@ SimulationNode::SimulationNode(const rclcpp::NodeOptions& options)
         std::bind(&SimulationNode::handlePause, this, std::placeholders::_1,
                   std::placeholders::_2));
 
-    reset_srv_ = create_service<std_srvs::srv::Trigger>(
+    reset_srv_ = create_service<warehouser_msgs::srv::SimReset>(
         "/sim/reset",
         std::bind(&SimulationNode::handleReset, this, std::placeholders::_1,
                   std::placeholders::_2));
@@ -239,12 +239,20 @@ void SimulationNode::handlePause(
 }
 
 void SimulationNode::handleReset(
-    const std_srvs::srv::Trigger::Request::SharedPtr /*request*/,
-    std_srvs::srv::Trigger::Response::SharedPtr response) {
-    world_.reset();
+    const warehouser_msgs::srv::SimReset::Request::SharedPtr request,
+    warehouser_msgs::srv::SimReset::Response::SharedPtr response) {
+    // Use robot_count from request (minimum 1 for backward compatibility)
+    int robot_count = std::max(1, request->robot_count);
+
+    // Reset with requested robot count
+    world_.resetWithRobotCount(static_cast<size_t>(robot_count));
+
     response->success = true;
-    response->message = "Simulation reset";
-    RCLCPP_INFO(get_logger(), "Simulation reset");
+    response->actual_robot_count = static_cast<int32_t>(world_.robotCount());
+    response->message = "Simulation reset with " +
+                        std::to_string(response->actual_robot_count) + " robots";
+    RCLCPP_INFO(get_logger(), "Simulation reset with %d robots",
+                response->actual_robot_count);
 }
 
 void SimulationNode::handleStep(
