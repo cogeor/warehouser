@@ -1,7 +1,8 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo, memo } from 'react'
 import { Stage, Layer } from 'react-konva'
+import { useShallow } from 'zustand/react/shallow'
 import { useAppStore } from '../store/appStore'
-import { publishMoveEntity } from '../ros/connection'
+import { useRosPublisher } from '../hooks/useRosService'
 import { CANVAS_CONFIG } from '../config'
 import {
   CanvasFloor,
@@ -14,9 +15,13 @@ import {
 
 const FLOOR_TILE_SIZE = 60
 
-export function Canvas() {
-  const entities = useAppStore((s) => s.entities)
-  const lidarRanges = useAppStore((s) => s.lidarRanges)
+// Precomputed scale (constant)
+const SCALE = CANVAS_CONFIG.CANVAS_SIZE / CANVAS_CONFIG.WORLD_SIZE
+
+function CanvasInner() {
+  // Use shallow comparison to prevent re-renders when array contents are same
+  const entities = useAppStore(useShallow((s) => s.entities))
+  const lidarRanges = useAppStore(useShallow((s) => s.lidarRanges))
   const lidarAngleMin = useAppStore((s) => s.lidarAngleMin)
   const lidarAngleMax = useAppStore((s) => s.lidarAngleMax)
   const selectedRobotId = useAppStore((s) => s.selectedRobotId)
@@ -36,22 +41,36 @@ export function Canvas() {
     ;(window as unknown as { __canvasResetPan?: () => void }).__canvasResetPan = resetPan
   }
 
-  // Filter entities by type
-  const robots = entities.filter((e) => e.type === 'robot')
-  const objects = entities.filter((e) => e.type === 'object')
-  const walls = entities.filter((e) => e.type === 'wall')
-  const zones = entities.filter((e) => e.type === 'zone')
+  // Memoize filtered entities to prevent re-renders when entities haven't changed
+  const robots = useMemo(() => entities.filter((e) => e.type === 'robot'), [entities])
+  const objects = useMemo(() => entities.filter((e) => e.type === 'object'), [entities])
+  const walls = useMemo(() => entities.filter((e) => e.type === 'wall'), [entities])
+  const zones = useMemo(() => entities.filter((e) => e.type === 'zone'), [entities])
 
   // Get selected robot for lidar (default to first robot if none selected)
-  const selectedRobot = robots.find((r) => r.id === selectedRobotId) ?? robots[0]
+  const selectedRobot = useMemo(
+    () => robots.find((r) => r.id === selectedRobotId) ?? robots[0],
+    [robots, selectedRobotId]
+  )
 
-  // Compute scale from config values
-  const scale = CANVAS_CONFIG.CANVAS_SIZE / CANVAS_CONFIG.WORLD_SIZE
+  // Use new ROS publisher hook
+  const publishJson = useRosPublisher<{ data: string }>('/sim/move_entity', 'std_msgs/msg/String')
 
-  // Callback for when objects are dragged
-  const handleObjectMoved = (id: string, worldX: number, worldY: number) => {
-    publishMoveEntity(id, worldX, worldY)
-  }
+  // Memoize callback for object movement
+  const handleObjectMoved = useCallback(
+    (id: string, worldX: number, worldY: number) => {
+      publishJson({ data: JSON.stringify({ id, x: worldX, y: worldY }) })
+    },
+    [publishJson]
+  )
+
+  // Memoize drag end handler
+  const handleDragEnd = useCallback((e: { target: { x: () => number; y: () => number } }) => {
+    setPan({
+      x: e.target.x(),
+      y: e.target.y(),
+    })
+  }, [])
 
   return (
     <Stage
@@ -61,12 +80,7 @@ export function Canvas() {
       draggable
       x={pan.x}
       y={pan.y}
-      onDragEnd={(e) => {
-        setPan({
-          x: e.target.x(),
-          y: e.target.y(),
-        })
-      }}
+      onDragEnd={handleDragEnd}
     >
       <Layer>
         {/* Floor tiles */}
@@ -79,21 +93,21 @@ export function Canvas() {
         {/* Walls */}
         <CanvasWalls
           walls={walls}
-          scale={scale}
+          scale={SCALE}
           canvasSize={CANVAS_CONFIG.CANVAS_SIZE}
         />
 
         {/* Zones */}
         <CanvasZones
           zones={zones}
-          scale={scale}
+          scale={SCALE}
           canvasSize={CANVAS_CONFIG.CANVAS_SIZE}
         />
 
         {/* Objects */}
         <CanvasObjects
           objects={objects}
-          scale={scale}
+          scale={SCALE}
           canvasSize={CANVAS_CONFIG.CANVAS_SIZE}
           onObjectMoved={handleObjectMoved}
         />
@@ -107,7 +121,7 @@ export function Canvas() {
             ranges={lidarRanges}
             angleMin={lidarAngleMin}
             angleMax={lidarAngleMax}
-            scale={scale}
+            scale={SCALE}
             canvasSize={CANVAS_CONFIG.CANVAS_SIZE}
           />
         )}
@@ -117,10 +131,13 @@ export function Canvas() {
           robots={robots}
           selectedRobotId={selectedRobotId}
           onRobotSelect={setSelectedRobotId}
-          scale={scale}
+          scale={SCALE}
           canvasSize={CANVAS_CONFIG.CANVAS_SIZE}
         />
       </Layer>
     </Stage>
   )
 }
+
+// Export memoized component to prevent parent re-renders from affecting Canvas
+export const Canvas = memo(CanvasInner)

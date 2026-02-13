@@ -34,9 +34,28 @@ vi.mock('../hooks/useSprite', () => ({
   useSprites: vi.fn(() => []),
 }))
 
-// Mock the ROS connection
+// Mock the ROS connection (legacy)
 vi.mock('../ros/connection', () => ({
   publishMoveEntity: vi.fn(),
+}))
+
+// Mock the new ROS hooks
+vi.mock('../hooks/useRosService', () => ({
+  useRosPublisher: () => vi.fn(),
+  useTriggerService: () => vi.fn().mockResolvedValue(true),
+}))
+
+// Mock RosConnectionProvider
+vi.mock('../hooks/useRosConnection', () => ({
+  useRosConnection: () => ({
+    ros: {},
+    isConnected: true,
+    connectionError: null,
+    reconnectAttempt: 0,
+    maxReconnectAttempts: 10,
+    retryConnection: vi.fn(),
+  }),
+  RosConnectionProvider: ({ children }: { children: React.ReactNode }) => children,
 }))
 
 import { render } from '@testing-library/react'
