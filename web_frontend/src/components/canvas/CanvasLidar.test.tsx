@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import React, { ReactNode } from 'react'
+import type { ReactNode } from 'react'
 
 // Mock Konva first
 vi.mock('konva', () => ({

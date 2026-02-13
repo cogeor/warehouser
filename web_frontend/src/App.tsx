@@ -5,6 +5,7 @@ import { ControlPanel } from './components/panels/ControlPanel'
 import { ObjectivePanel } from './components/panels/ObjectivePanel'
 import { StatusPanel } from './components/panels/StatusPanel'
 import { RosConnectionProvider } from './hooks/useRosConnection'
+import { RosDataBridge } from './components/RosDataBridge'
 import { usePanelConfig } from './hooks/usePanelConfig'
 
 function App() {
@@ -12,6 +13,7 @@ function App() {
 
   return (
     <RosConnectionProvider>
+      <RosDataBridge />
       <div className="min-h-screen p-4">
         <header className="mb-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
