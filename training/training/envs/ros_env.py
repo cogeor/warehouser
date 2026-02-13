@@ -59,6 +59,9 @@ class ROSGymEnv(gym.Env[Observation, Action]):
         # Episode state
         self._step_count = 0
 
+        # Action feedback state for masking
+        self._is_carrying = False
+
     def _init_ros(self) -> Result[None]:
         """Initialize ROS2 node and service clients.
 
@@ -139,6 +142,7 @@ class ROSGymEnv(gym.Env[Observation, Action]):
 
         response = future.result()
         self._step_count = 0
+        self._is_carrying = False  # Reset carrying state on episode start
 
         # Convert observation
         obs = np.array(response.observation.data, dtype=np.float32)
@@ -152,10 +156,40 @@ class ROSGymEnv(gym.Env[Observation, Action]):
 
         Args:
             action: Action to take [linear_vel, angular_vel, pick, place].
+                All values expected in [-1, 1] range (normalized from policy).
 
         Returns:
             Tuple of (observation, reward, terminated, truncated, info).
         """
+        # ======================================================================
+        # ACTION PROCESSING (Python Side)
+        # ======================================================================
+        # This is the first stage of action processing. The full pipeline is:
+        #
+        #   Policy Output [-1,1]
+        #       |
+        #       v
+        #   [Action Wrappers] (if configured)
+        #       - ActionScalingWrapper:  Scale to physical velocity limits
+        #       - ActionSmoothingWrapper: EMA filter for smooth motion
+        #       - AccelerationLimitWrapper: Limit rate of velocity change
+        #       - SafetyClippingWrapper: Hard limits as final safety layer
+        #       |
+        #       v
+        #   [ros_env.step()] <-- We are here
+        #       - Action masking based on carrying state
+        #       |
+        #       v
+        #   [RLBridge.sendAction()]
+        #       - Velocity scaling (if not done by wrapper)
+        #       - SafetyController (obstacle avoidance)
+        #       - Discrete action triggering (threshold at 0.5)
+        #       |
+        #       v
+        #   Robot Commands
+        #
+        # ======================================================================
+
         # Ensure action is the right shape and type
         action = np.asarray(action, dtype=np.float32).flatten()
         if len(action) != self.config.action_dim:
@@ -172,14 +206,42 @@ class ROSGymEnv(gym.Env[Observation, Action]):
                 {"error": init_result.error()},
             )
 
+        # ======================================================================
+        # ACTION MASKING
+        # ======================================================================
+        # Mask invalid discrete actions based on the robot's carrying state.
+        # This is a form of "action validity" that prevents logically impossible
+        # actions from being sent to the simulation:
+        #
+        #   - If carrying an object: Can't pick another (pick masked to 0)
+        #   - If not carrying:       Can't place nothing (place masked to 0)
+        #
+        # Why mask here (Python) instead of in RLBridge (C++)?
+        #   1. Faster feedback loop - invalid actions rejected before ROS call
+        #   2. Cleaner separation - policy correction happens at training level
+        #   3. RLBridge can assume valid actions, simplifying C++ logic
+        #
+        # The mask sets the signal to 0.0, which is below the trigger threshold
+        # of 0.5 used in RLBridge::sendAction(), so the discrete action won't
+        # fire even if the policy wanted it to.
+        #
+        # Future enhancement: Invalid action masking could also be done via
+        # Gymnasium's action_mask mechanism for more explicit policy guidance.
+        # ======================================================================
+        masked_action = action.copy()
+        if self._is_carrying:
+            masked_action[2] = 0.0  # Mask pick when carrying
+        else:
+            masked_action[3] = 0.0  # Mask place when not carrying
+
         # Call step service
         from warehouser_msgs.srv import RLStep
 
         request = RLStep.Request()
-        request.action_linear = float(action[0])
-        request.action_angular = float(action[1])
-        request.action_pick = float(action[2])
-        request.action_place = float(action[3])
+        request.action_linear = float(masked_action[0])
+        request.action_angular = float(masked_action[1])
+        request.action_pick = float(masked_action[2])
+        request.action_place = float(masked_action[3])
         request.num_steps = 1
 
         import rclpy
@@ -199,17 +261,30 @@ class ROSGymEnv(gym.Env[Observation, Action]):
         response = future.result()
         self._step_count += 1
 
+        # Update carrying state from response feedback
+        self._is_carrying = bool(response.is_carrying)
+
         # Convert observation
         obs = np.array(response.observation.data, dtype=np.float32)
         if len(obs) != self.config.obs_dim:
             obs = np.zeros(self.config.obs_dim, dtype=np.float32)
+
+        # Build info dict with action feedback
+        info: dict[str, Any] = {
+            "info": response.info,
+            "step": self._step_count,
+            "safety_state": int(response.safety_state),
+            "pick_success": bool(response.pick_success),
+            "place_success": bool(response.place_success),
+            "is_carrying": self._is_carrying,
+        }
 
         return (
             obs,
             float(response.reward),
             bool(response.terminated),
             bool(response.truncated),
-            {"info": response.info, "step": self._step_count},
+            info,
         )
 
     def render(self) -> None:
