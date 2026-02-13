@@ -16,3 +16,9 @@ float32 reward
 bool terminated           # Episode ended (goal reached, collision, etc.)
 bool truncated            # Episode cut off (max steps)
 string info               # JSON string with additional info
+
+# Action feedback for discrete action masking
+uint8 safety_state        # 0=NOMINAL, 1=SLOWDOWN, 2=EMERGENCY, 3=STOPPED
+bool pick_success         # Whether pick action succeeded
+bool place_success        # Whether place action succeeded
+bool is_carrying          # Current carrying state after action
