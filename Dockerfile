@@ -11,6 +11,8 @@ RUN apt-get update && apt-get install -y \
     ros-jazzy-std-msgs \
     ros-jazzy-std-srvs \
     ros-jazzy-geometry-msgs \
+    ros-jazzy-nav-msgs \
+    ros-jazzy-sensor-msgs \
     ros-jazzy-ament-cmake-gtest \
     ros-jazzy-ament-lint-auto \
     ros-jazzy-ament-lint-common \
