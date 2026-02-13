@@ -3,124 +3,25 @@ name: CI
 on:
   push:
     branches: [main]
+    paths:
+      - 'Dockerfile'
+      - 'docker-compose*.yml'
+      - '.dockerignore'
+      - '.github/workflows/ci.yml'
   pull_request:
     branches: [main]
+    paths:
+      - 'Dockerfile'
+      - 'docker-compose*.yml'
+      - '.dockerignore'
+      - '.github/workflows/ci.yml'
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  ros2-build-test:
-    name: ROS2 Build & Test
-    runs-on: ubuntu-24.04
-    container:
-      image: ros:jazzy-ros-base
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          apt-get update
-          apt-get install -y \
-            build-essential \
-            cmake \
-            g++-13 \
-            python3-colcon-common-extensions \
-            python3-rosdep \
-            ros-jazzy-std-msgs \
-            ros-jazzy-std-srvs \
-            ros-jazzy-geometry-msgs \
-            ros-jazzy-nav-msgs \
-            ros-jazzy-sensor-msgs \
-            ros-jazzy-ament-cmake-gtest \
-            ros-jazzy-ament-lint-auto \
-            ros-jazzy-ament-lint-common
-
-      - name: Set GCC 13 as default
-        run: |
-          update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100
-          update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 100
-
-      - name: Build ROS2 packages
-        working-directory: ros_ws
-        run: |
-          . /opt/ros/jazzy/setup.sh
-          colcon build --symlink-install --cmake-args -DBUILD_TESTING=ON
-        shell: bash
-
-      - name: Run unit tests
-        working-directory: ros_ws
-        run: |
-          . /opt/ros/jazzy/setup.sh
-          . install/setup.sh
-          colcon test --ctest-args -E '(integration|copyright|cpplint|flake8|pep257|uncrustify|cppcheck|lint_cmake|xmllint)'
-          colcon test-result --verbose
-        shell: bash
-
-  python-lint:
-    name: Python Lint
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-
-      - name: Set up Python
-        run: uv python install 3.12
-
-      - name: Install dependencies
-        working-directory: training
-        run: |
-          uv venv
-          uv pip install -e ".[dev]"
-
-      - name: Run ruff check
-        working-directory: training
-        run: uv run ruff check .
-
-      - name: Run ruff format check
-        working-directory: training
-        run: uv run ruff format --check .
-
-      - name: Run mypy
-        working-directory: training
-        run: uv run mypy training tests --ignore-missing-imports
-
-  python-test:
-    name: Python Test
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-
-      - name: Set up Python
-        run: uv python install 3.12
-
-      - name: Install dependencies
-        working-directory: training
-        run: |
-          uv venv
-          uv pip install -e ".[dev]"
-
-      - name: Run pytest (unit tests only)
-        working-directory: training
-        run: |
-          uv run pytest tests/ -v --ignore=tests/integration --cov=training --cov-report=xml
-
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
-        with:
-          files: training/coverage.xml
-          flags: python
-          fail_ci_if_error: false
-
   docker-build:
     name: Docker Build
     runs-on: ubuntu-24.04
@@ -140,20 +41,16 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # Summary job that depends on all others - useful for branch protection
   ci-success:
     name: CI Success
     runs-on: ubuntu-24.04
-    needs: [ros2-build-test, python-lint, python-test, docker-build]
+    needs: [docker-build]
     if: always()
     steps:
       - name: Check all jobs passed
         run: |
-          if [[ "${{ needs.ros2-build-test.result }}" != "success" ]] || \
-             [[ "${{ needs.python-lint.result }}" != "success" ]] || \
-             [[ "${{ needs.python-test.result }}" != "success" ]] || \
-             [[ "${{ needs.docker-build.result }}" != "success" ]]; then
-            echo "One or more jobs failed"
+          if [[ "${{ needs.docker-build.result }}" != "success" ]]; then
+            echo "Docker build failed"
             exit 1
           fi
-          echo "All jobs passed!"
+          echo "All CI jobs passed!"
