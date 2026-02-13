@@ -1,0 +1,6 @@
+export { CanvasFloor } from './CanvasFloor'
+export { CanvasWalls } from './CanvasWalls'
+export { CanvasZones } from './CanvasZones'
+export { CanvasObjects } from './CanvasObjects'
+export { CanvasRobot } from './CanvasRobot'
+export { CanvasLidar } from './CanvasLidar'
