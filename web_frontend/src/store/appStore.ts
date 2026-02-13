@@ -13,7 +13,7 @@ export interface Entity {
   carriedId?: string
 }
 
-interface AppState {
+export interface AppState {
   // Connection
   connected: boolean
   setConnected: (connected: boolean) => void
@@ -50,6 +50,10 @@ interface AppState {
   // Demo mode
   demoActive: boolean
   setDemoActive: (active: boolean) => void
+
+  // Multi-robot support
+  selectedRobotId: string | null
+  setSelectedRobotId: (id: string | null) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -90,4 +94,20 @@ export const useAppStore = create<AppState>((set) => ({
   // Demo mode
   demoActive: false,
   setDemoActive: (active) => set({ demoActive: active }),
+
+  // Multi-robot support
+  selectedRobotId: null,
+  setSelectedRobotId: (id) => set({ selectedRobotId: id }),
 }))
+
+export function selectRobots(state: AppState): Entity[] {
+  return state.entities.filter(e => e.type === 'robot')
+}
+
+export function selectSelectedRobot(state: AppState): Entity | undefined {
+  const robots = selectRobots(state)
+  if (state.selectedRobotId) {
+    return robots.find(r => r.id === state.selectedRobotId)
+  }
+  return robots[0] // Default to first robot
+}
