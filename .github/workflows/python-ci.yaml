@@ -1,0 +1,95 @@
+name: Python CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'training/**'
+      - '.github/workflows/python-ci.yaml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'training/**'
+      - '.github/workflows/python-ci.yaml'
+
+concurrency:
+  group: python-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: training
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: |
+          uv venv
+          uv pip install -e ".[dev]"
+
+      - name: Run ruff check
+        run: uv run ruff check .
+
+      - name: Run ruff format check
+        run: uv run ruff format --check .
+
+      - name: Run mypy
+        run: uv run mypy training tests --ignore-missing-imports
+
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: training
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: |
+          uv venv
+          uv pip install -e ".[dev]"
+
+      - name: Run pytest
+        run: |
+          uv run pytest tests/ -v --ignore=tests/integration --cov=training --cov-report=xml
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: training/coverage.xml
+          flags: python-training
+          fail_ci_if_error: false
+
+  ci-success:
+    name: Python CI Success
+    runs-on: ubuntu-24.04
+    needs: [lint, test]
+    if: always()
+    steps:
+      - name: Check all jobs passed
+        run: |
+          if [[ "${{ needs.lint.result }}" != "success" ]] || \
+             [[ "${{ needs.test.result }}" != "success" ]]; then
+            echo "One or more Python CI jobs failed"
+            exit 1
+          fi
+          echo "All Python CI jobs passed!"
