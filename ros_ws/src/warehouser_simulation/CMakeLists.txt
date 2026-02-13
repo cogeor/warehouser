@@ -71,6 +71,9 @@ if(BUILD_TESTING)
   ament_add_gtest(test_world_manager test/test_world_manager.cpp)
   target_link_libraries(test_world_manager ${PROJECT_NAME}_lib)
 
+  ament_add_gtest(test_robot_collision test/test_robot_collision.cpp)
+  target_link_libraries(test_robot_collision ${PROJECT_NAME}_lib)
+
   # Integration tests (require nodes to be running)
   ament_add_gtest(test_simulation_integration test/integration/test_simulation_node.cpp)
   target_link_libraries(test_simulation_integration ${PROJECT_NAME}_lib)

@@ -66,6 +66,9 @@ if(BUILD_TESTING)
   ament_add_gtest(test_exploration_reward test/test_exploration_reward.cpp)
   target_link_libraries(test_exploration_reward ${PROJECT_NAME}_lib)
 
+  ament_add_gtest(test_multi_robot test/test_multi_robot.cpp)
+  target_link_libraries(test_multi_robot ${PROJECT_NAME}_lib)
+
   # Integration tests (require nodes to be running)
   ament_add_gtest(test_rl_bridge_integration test/integration/test_rl_bridge_node.cpp)
   target_link_libraries(test_rl_bridge_integration ${PROJECT_NAME}_lib)
