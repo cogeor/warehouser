@@ -9,6 +9,7 @@
 #include <std_msgs/msg/empty.hpp>
 #include <std_srvs/srv/trigger.hpp>
 
+#include "warehouser_safety/safety_controller.hpp"
 #include "warehouser_msgs/srv/sim_reset.hpp"
 
 #include "warehouser_msgs/msg/goal.hpp"
@@ -54,9 +55,19 @@ private:
     // Multi-robot configuration
     size_t robot_count_ = 1;
 
+    // Safety controller for velocity limiting
+    warehouser_safety::SafetyController safety_controller_;
+    warehouser_safety::SafetyConfig safety_config_;
+    float v_max_ = 1.0f;      // Maximum linear velocity (m/s)
+    float omega_max_ = 2.0f;  // Maximum angular velocity (rad/s)
+
     // Per-robot state (indexed by robot_id)
     std::vector<warehouser_msgs::msg::WorldState> prev_world_states_;
     std::vector<RewardCalculator> reward_calculators_;
+
+    // Action feedback tracking (per-robot)
+    std::vector<bool> last_pick_success_;
+    std::vector<bool> last_place_success_;
 
     // Shared episode state
     warehouser_msgs::msg::WorldState curr_world_;

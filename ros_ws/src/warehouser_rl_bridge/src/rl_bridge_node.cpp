@@ -17,6 +17,22 @@ RLBridgeNode::RLBridgeNode(const rclcpp::NodeOptions& options)
     float time_penalty = declare_parameter("time_penalty", -0.1);
     float goal_threshold = declare_parameter("goal_threshold", 0.5);
 
+    // Velocity limit parameters
+    // Actions from RL are normalized [-1, 1], scaled by these limits:
+    //   linear_vel = action_linear * v_max
+    //   angular_vel = action_angular * omega_max
+    v_max_ = static_cast<float>(declare_parameter("v_max", 1.0));
+    omega_max_ = static_cast<float>(declare_parameter("omega_max", 2.0));
+
+    // Safety controller configuration
+    safety_config_.max_linear_vel = v_max_;
+    safety_config_.max_angular_vel = omega_max_;
+    safety_config_.min_distance = static_cast<float>(
+        declare_parameter("safety_min_distance", 0.3));
+    safety_config_.slowdown_distance = static_cast<float>(
+        declare_parameter("safety_slowdown_distance", 0.8));
+    safety_controller_.setConfig(safety_config_);
+
     // Store reward config for creating per-robot calculators later
     RewardConfig reward_config;
     reward_config.progress_weight = static_cast<float>(progress_weight);
@@ -126,6 +142,36 @@ void RLBridgeNode::handleRLStep(
                      ", \"robot_id\": " + std::to_string(robot_id) +
                      ", \"reason\": \"" + reward_result.termination_reason +
                      "\"}";
+
+    // Action feedback: safety state from safety controller
+    response->safety_state = static_cast<uint8_t>(safety_controller_.getState());
+
+    // Action feedback: determine pick/place success and carrying state
+    // Find robot entity in current world state
+    bool is_carrying = false;
+    bool prev_carrying = false;
+    for (const auto& entity : curr_world_.entities) {
+        if (entity.type == 0 && entity.id == "robot" + std::to_string(robot_id)) {
+            is_carrying = entity.is_carrying;
+            break;
+        }
+    }
+    for (const auto& entity : prev_world_states_[robot_id].entities) {
+        if (entity.type == 0 && entity.id == "robot" + std::to_string(robot_id)) {
+            prev_carrying = entity.is_carrying;
+            break;
+        }
+    }
+
+    // Pick succeeded if action requested and now carrying (wasn't before)
+    response->pick_success = (request->action_pick > 0.5f) &&
+                             is_carrying && !prev_carrying;
+
+    // Place succeeded if action requested and no longer carrying (was before)
+    response->place_success = (request->action_place > 0.5f) &&
+                              !is_carrying && prev_carrying;
+
+    response->is_carrying = is_carrying;
 }
 
 void RLBridgeNode::handleRLReset(
@@ -216,6 +262,28 @@ void RLBridgeNode::initializeRobotPublishers(size_t count) {
 
 void RLBridgeNode::sendAction(size_t robot_id, float linear, float angular,
                                float pick, float place) {
+    // ==========================================================================
+    // ACTION PROCESSING PIPELINE
+    // ==========================================================================
+    // This function transforms RL policy outputs into safe robot commands.
+    //
+    // Input: Normalized actions from policy network (all in [-1, 1] range)
+    //   - linear:  Normalized linear velocity command
+    //   - angular: Normalized angular velocity command
+    //   - pick:    Continuous signal for pick action (discrete at threshold)
+    //   - place:   Continuous signal for place action (discrete at threshold)
+    //
+    // Processing stages:
+    //   1. Velocity Scaling: Convert normalized [-1, 1] to physical units
+    //   2. Safety Limiting:  Apply obstacle avoidance via SafetyController
+    //   3. Discrete Actions: Threshold continuous signals for pick/place
+    //
+    // Output: Commands published to robot topics
+    //   - /robot{N}/cmd_vel: geometry_msgs::Twist
+    //   - /robot{N}/sim/pick: std_msgs::Empty (if triggered)
+    //   - /robot{N}/sim/unpick: std_msgs::Empty (if triggered)
+    // ==========================================================================
+
     // Validate robot_id against publisher count
     if (robot_id >= cmd_vel_pubs_.size()) {
         RCLCPP_WARN(get_logger(),
@@ -224,18 +292,76 @@ void RLBridgeNode::sendAction(size_t robot_id, float linear, float angular,
         return;
     }
 
-    // Velocity command to per-robot topic
+    // -------------------------------------------------------------------------
+    // STAGE 1: VELOCITY SCALING
+    // -------------------------------------------------------------------------
+    // Scale normalized actions [-1, 1] to physical velocity limits.
+    // The policy outputs normalized values for stable training; we convert
+    // these to real-world velocity commands using configured max velocities.
+    //
+    // Formula:
+    //   linear_vel  = action_linear  * v_max     (m/s)
+    //   angular_vel = action_angular * omega_max (rad/s)
+    //
+    // Note: Python wrappers (ActionScalingWrapper) may also perform scaling,
+    // but this ensures proper scaling even for direct service calls.
+    // -------------------------------------------------------------------------
+    float scaled_linear = linear * v_max_;
+    float scaled_angular = angular * omega_max_;
+
+    // -------------------------------------------------------------------------
+    // STAGE 2: SAFETY LIMITING (SafetyController)
+    // -------------------------------------------------------------------------
+    // Apply lidar-based obstacle avoidance to prevent collisions.
+    // The SafetyController operates in several states:
+    //
+    //   - NOMINAL:   No nearby obstacles, full speed allowed
+    //   - SLOWDOWN:  Obstacle in slowdown_distance, velocity scaled down
+    //   - EMERGENCY: Obstacle within min_distance, forward motion stopped
+    //   - STOPPED:   Complete stop for safety
+    //
+    // Safety scaling is applied based on minimum obstacle distance:
+    //   scale = (distance - min_distance) / (slowdown_distance - min_distance)
+    //   safe_vel = raw_vel * clamp(scale, 0, 1)
+    //
+    // TODO: Subscribe to /robot{N}/lidar for per-robot lidar data.
+    // Currently using empty lidar data which defaults to NOMINAL state.
+    // -------------------------------------------------------------------------
+    warehouser_safety::LidarData lidar_data;
+    lidar_data.angle_min = -1.57f;  // -90 degrees (front-left)
+    lidar_data.angle_max = 1.57f;   // +90 degrees (front-right)
+
+    warehouser_safety::Velocity raw_vel{scaled_linear, scaled_angular};
+    auto safe_vel = safety_controller_.applySafetyLimits(raw_vel, lidar_data);
+
+    // Publish velocity command to per-robot topic
     geometry_msgs::msg::Twist cmd;
-    cmd.linear.x = linear;
-    cmd.angular.z = angular;
+    cmd.linear.x = safe_vel.linear;
+    cmd.angular.z = safe_vel.angular;
     cmd_vel_pubs_[robot_id]->publish(cmd);
 
-    // Pick action (threshold at 0.5)
+    // -------------------------------------------------------------------------
+    // STAGE 3: DISCRETE ACTION TRIGGERING
+    // -------------------------------------------------------------------------
+    // Convert continuous pick/place signals to discrete actions.
+    // The policy outputs continuous signals in [-1, 1], but pick/place are
+    // inherently discrete operations (you either do them or you don't).
+    //
+    // Threshold: 0.5
+    //   - signal > 0.5:  Action is triggered
+    //   - signal <= 0.5: Action is not triggered
+    //
+    // This allows the policy to express confidence in its discrete decisions
+    // while maintaining a differentiable output during training.
+    //
+    // Note: Action masking happens in ros_env.py BEFORE this function:
+    //   - If carrying:     pick signal is masked to 0 (can't pick again)
+    //   - If not carrying: place signal is masked to 0 (can't place nothing)
+    // -------------------------------------------------------------------------
     if (pick > 0.5f) {
         pick_pubs_[robot_id]->publish(std_msgs::msg::Empty());
     }
 
-    // Place action (threshold at 0.5)
     if (place > 0.5f) {
         unpick_pubs_[robot_id]->publish(std_msgs::msg::Empty());
     }
