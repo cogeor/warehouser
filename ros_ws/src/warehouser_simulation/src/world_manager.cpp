@@ -105,13 +105,60 @@ void WorldManager::reset() {
     }
 }
 
+void WorldManager::resetWithRobotCount(size_t robot_count) {
+    // Reset simulation time
+    sim_time_ = 0.0f;
+    running_ = false;
+
+    // Clear existing robots and their configs
+    robots_.clear();
+    initial_robot_configs_.clear();
+
+    // Spawn requested number of robots with distributed positions
+    const float spacing = 2.0f;  // Minimum spacing between robots
+    const float start_x = 1.0f;
+    const float start_y = 1.0f;
+
+    for (size_t i = 0; i < robot_count; ++i) {
+        RobotSpawnConfig spawn;
+        spawn.id = "robot" + std::to_string(i);
+        // Distribute robots in a grid pattern
+        size_t cols = static_cast<size_t>(std::sqrt(static_cast<double>(robot_count))) + 1;
+        spawn.x = start_x + static_cast<float>(i % cols) * spacing;
+        spawn.y = start_y + static_cast<float>(i / cols) * spacing;
+        spawn.theta = 0.0f;
+
+        // Clamp to world bounds
+        spawn.x = std::min(spawn.x, config_.width - 1.0f);
+        spawn.y = std::min(spawn.y, config_.height - 1.0f);
+
+        addRobot(spawn);
+    }
+
+    // Reset objects to initial positions
+    for (const auto& [id, pos] : initial_object_positions_) {
+        if (auto* obj = findObject(id)) {
+            obj->x = pos.first;
+            obj->y = pos.second;
+            obj->is_picked = false;
+        }
+    }
+}
+
 void WorldManager::step(float dt) {
     if (!running_) {
         return;
     }
 
-    // Update all robots
+    // Clear collision flags at start of step
     for (auto& robot : robots_) {
+        robot->in_robot_collision = false;
+    }
+
+    // Update all robots
+    for (size_t i = 0; i < robots_.size(); ++i) {
+        auto& robot = robots_[i];
+
         // Store previous position for collision rollback
         float prev_x = robot->x;
         float prev_y = robot->y;
@@ -119,8 +166,18 @@ void WorldManager::step(float dt) {
         // Update robot
         robot->update(dt);
 
-        // Check collision and rollback if needed
-        if (checkCollision(robot->x, robot->y) || !isInBounds(robot->x, robot->y)) {
+        // Check wall collision, bounds, and robot-robot collision
+        bool wall_collision = checkCollision(robot->x, robot->y);
+        bool out_of_bounds = !isInBounds(robot->x, robot->y);
+        bool robot_collision = checkRobotCollision(i);
+
+        // Set collision flag for reward calculation
+        if (robot_collision) {
+            robot->in_robot_collision = true;
+        }
+
+        // Rollback if any collision detected
+        if (wall_collision || out_of_bounds || robot_collision) {
             robot->x = prev_x;
             robot->y = prev_y;
             robot->stop();
@@ -209,6 +266,29 @@ bool WorldManager::checkCollision(float px, float py) const {
             return true;
         }
     }
+    return false;
+}
+
+bool WorldManager::checkRobotCollision(size_t robot_index) const {
+    if (robot_index >= robots_.size()) {
+        return false;
+    }
+
+    const auto& robot = robots_[robot_index];
+    const float collision_distance = 2.0f * Robot::kRadius;
+
+    for (size_t i = 0; i < robots_.size(); ++i) {
+        if (i == robot_index) {
+            continue;
+        }
+
+        const auto& other = robots_[i];
+        float dist = distance(robot->x, robot->y, other->x, other->y);
+        if (dist < collision_distance) {
+            return true;
+        }
+    }
+
     return false;
 }
 

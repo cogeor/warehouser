@@ -55,6 +55,10 @@ public:
     /// Reset to initial state
     void reset();
 
+    /// Reset to initial state with a specific number of robots
+    /// @param robot_count Number of robots to spawn
+    void resetWithRobotCount(size_t robot_count);
+
     /// Step the simulation forward
     /// @param dt Time step in seconds
     void step(float dt);
@@ -116,6 +120,11 @@ public:
 
     /// Check if a position collides with any wall
     bool checkCollision(float px, float py) const;
+
+    /// Check if a robot collides with any other robot
+    /// @param robot_index Index of the robot to check
+    /// @return true if the robot collides with another robot
+    bool checkRobotCollision(size_t robot_index) const;
 
     /// Check if position is within world bounds
     bool isInBounds(float px, float py) const {
