@@ -1,7 +1,19 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { StatusPanel } from './StatusPanel'
 import { useAppStore } from '../store/appStore'
+
+// Mock the useRosConnection hook
+vi.mock('../hooks/useRosConnection', () => ({
+  useRosConnection: () => ({
+    ros: null,
+    isConnected: true,
+    connectionError: null,
+    reconnectAttempt: 0,
+    maxReconnectAttempts: 10,
+    retryConnection: vi.fn(),
+  }),
+}))
 
 describe('StatusPanel', () => {
   beforeEach(() => {
