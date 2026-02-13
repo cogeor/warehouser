@@ -220,22 +220,13 @@ export function useWorldState(): UseRosTopicResult<WorldState> {
  * }
  * ```
  */
-export function useLidarDebug(throttleMs?: number): UseRosTopicResult<LidarDebug> {
-  // Use throttled version if throttleMs is specified, otherwise use regular
-  const throttledResult = useThrottledTopic<LidarDebug>(
+export function useLidarDebug(throttleMs: number = 0): UseRosTopicResult<LidarDebug> {
+  // Always use throttled version - with throttleMs=0 it accepts every message
+  return useThrottledTopic<LidarDebug>(
     '/observations/lidar_debug',
     'warehouser_msgs/msg/LidarDebug',
-    throttleMs ?? 0
+    throttleMs
   );
-
-  const regularResult = useRosTopic<LidarDebug>(
-    '/observations/lidar_debug',
-    'warehouser_msgs/msg/LidarDebug'
-  );
-
-  // Return throttled result if throttleMs is specified (including 0)
-  // Return regular result only if throttleMs is undefined
-  return throttleMs !== undefined ? throttledResult : regularResult;
 }
 
 /**

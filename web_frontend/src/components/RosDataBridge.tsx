@@ -6,10 +6,11 @@
  * (Canvas, panels) receive data without modification.
  */
 
-import { useEffect } from 'react';
-import { useWorldState, useLidarDebug, useTaskStatus } from '../hooks/useRosTopic';
+import { useEffect, useRef } from 'react';
+import { useThrottledTopic, useTaskStatus } from '../hooks/useRosTopic';
 import { useRosConnection } from '../hooks/useRosConnection';
 import { useAppStore, Entity } from '../store/appStore';
+import type { WorldState, LidarDebug } from '../types/warehouser_msgs';
 
 /**
  * Maps ROS entity type enum to string type
@@ -27,11 +28,27 @@ const ENTITY_TYPE_MAP: Record<number, Entity['type']> = {
  */
 export function RosDataBridge(): null {
   const { isConnected } = useRosConnection();
-  const { data: worldState } = useWorldState();
-  const { data: lidarDebug } = useLidarDebug(50); // Throttle to 20Hz
+
+  // Throttle world state to 10Hz (100ms) - sufficient for smooth visualization
+  const { data: worldState } = useThrottledTopic<WorldState>(
+    '/world/state',
+    'warehouser_msgs/msg/WorldState',
+    100
+  );
+
+  // Throttle lidar to 10Hz (100ms)
+  const { data: lidarDebug } = useThrottledTopic<LidarDebug>(
+    '/observations/lidar_debug',
+    'warehouser_msgs/msg/LidarDebug',
+    100
+  );
+
   const { data: taskStatus } = useTaskStatus();
 
-  // Store setters
+  // Track previous sim_time to avoid redundant updates
+  const prevSimTimeRef = useRef<number>(-1);
+
+  // Store setters - get once to avoid selector re-runs
   const setConnected = useAppStore((s) => s.setConnected);
   const setEntities = useAppStore((s) => s.setEntities);
   const setSimTime = useAppStore((s) => s.setSimTime);
@@ -43,9 +60,13 @@ export function RosDataBridge(): null {
     setConnected(isConnected);
   }, [isConnected, setConnected]);
 
-  // Sync world state to store
+  // Sync world state to store (only when sim_time changes)
   useEffect(() => {
     if (!worldState) return;
+
+    // Skip if sim_time hasn't changed (avoid redundant updates)
+    if (worldState.sim_time === prevSimTimeRef.current) return;
+    prevSimTimeRef.current = worldState.sim_time;
 
     const entities: Entity[] = worldState.entities.map((e) => ({
       id: e.id,

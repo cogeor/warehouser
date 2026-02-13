@@ -1,5 +1,5 @@
-import { useRef } from 'react'
-import { callService, publishCommand } from '../../ros/connection'
+import { useRef, useCallback } from 'react'
+import { useTriggerService, useRosPublisher } from '../../hooks/useRosService'
 import { useAppStore } from '../../store/appStore'
 import type { PanelConfig, PanelProps } from '../../types/panels'
 
@@ -21,22 +21,43 @@ export function ControlPanel({ isCollapsed }: PanelProps) {
   const demoIntervalRef = useRef<number | null>(null)
   const colorIndexRef = useRef(0)
 
+  // Use new ROS hooks
+  const startSim = useTriggerService('/sim/start')
+  const pauseSim = useTriggerService('/sim/pause')
+  const resetSim = useTriggerService('/sim/reset')
+  const publishJson = useRosPublisher<{ data: string }>('/command/json', 'std_msgs/msg/String')
+
+  const publishCommand = useCallback(
+    (target: string) => {
+      publishJson({ data: JSON.stringify({ action: 'pick', target }) })
+    },
+    [publishJson]
+  )
+
   const handleStart = async () => {
-    const success = await callService('/sim/start')
+    const success = await startSim()
     if (success) setSimRunning(true)
   }
 
   const handlePause = async () => {
-    const success = await callService('/sim/pause')
+    const success = await pauseSim()
     if (success) setSimRunning(false)
   }
+
+  const stopAutoDemo = useCallback(() => {
+    setDemoActive(false)
+    if (demoIntervalRef.current !== null) {
+      clearInterval(demoIntervalRef.current)
+      demoIntervalRef.current = null
+    }
+  }, [setDemoActive])
 
   const handleReset = async () => {
     // Stop demo if running
     if (demoActive) {
       stopAutoDemo()
     }
-    await callService('/sim/reset')
+    await resetSim()
     setSimRunning(false)
   }
 
@@ -46,7 +67,7 @@ export function ControlPanel({ isCollapsed }: PanelProps) {
 
     // Start simulation if not running
     if (!simRunning) {
-      const success = await callService('/sim/start')
+      const success = await startSim()
       if (success) setSimRunning(true)
     }
 
@@ -59,14 +80,6 @@ export function ControlPanel({ isCollapsed }: PanelProps) {
       publishCommand(DEMO_COLORS[colorIndexRef.current])
       colorIndexRef.current = (colorIndexRef.current + 1) % DEMO_COLORS.length
     }, DEMO_INTERVAL_MS)
-  }
-
-  const stopAutoDemo = () => {
-    setDemoActive(false)
-    if (demoIntervalRef.current !== null) {
-      clearInterval(demoIntervalRef.current)
-      demoIntervalRef.current = null
-    }
   }
 
   const handleDemoToggle = () => {
