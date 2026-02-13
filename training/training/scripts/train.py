@@ -14,7 +14,7 @@ from typing import NoReturn
 from pydantic import ValidationError
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
-from stable_baselines3.common.vec_env import DummyVecEnv
+from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
 from training.envs.ros_env import ROSGymEnv
 from training.models.config import EnvConfig, TrainingConfig
@@ -109,12 +109,38 @@ def train(
 
     # Create environment
     try:
-        env = DummyVecEnv([lambda: make_env(env_config)])
+        base_env = DummyVecEnv([lambda: make_env(env_config)])
+        # Wrap with VecNormalize for observation and reward normalization
+        env: VecNormalize = VecNormalize(
+            base_env,
+            training=True,
+            norm_obs=train_config.norm_obs,
+            norm_reward=train_config.norm_reward,
+            clip_obs=train_config.clip_obs,
+            clip_reward=train_config.clip_reward,
+        )
     except Exception as e:
         raise TrainingError(
             f"Failed to create training environment: {e}\n"
             "Check that ROS is running and the environment configuration is valid."
         ) from e
+
+    # Load VecNormalize stats if resuming and stats file exists
+    if resume_from is not None:
+        # Check for VecNormalize stats file (same name with _vecnormalize.pkl suffix)
+        resume_path = Path(resume_from)
+        # Handle both .zip and non-.zip paths
+        base_path = str(resume_path.with_suffix("")) if resume_path.suffix == ".zip" else str(resume_path)
+        vecnorm_path = base_path + "_vecnormalize.pkl"
+        if Path(vecnorm_path).exists():
+            logger.info(f"Loading VecNormalize stats from {vecnorm_path}")
+            env = VecNormalize.load(vecnorm_path, env.venv)
+            env.training = True  # Ensure training mode is enabled
+        else:
+            logger.warning(
+                f"VecNormalize stats file not found: {vecnorm_path}. "
+                "Starting with fresh normalization statistics."
+            )
 
     # Create or load model
     try:
@@ -161,7 +187,19 @@ def train(
     )
 
     try:
-        eval_env = DummyVecEnv([lambda: make_env(env_config)])
+        eval_base_env = DummyVecEnv([lambda: make_env(env_config)])
+        # Wrap with VecNormalize for evaluation (training=False to not update stats)
+        eval_env: VecNormalize = VecNormalize(
+            eval_base_env,
+            training=False,
+            norm_obs=train_config.norm_obs,
+            norm_reward=train_config.norm_reward,
+            clip_obs=train_config.clip_obs,
+            clip_reward=train_config.clip_reward,
+        )
+        # Sync normalization stats from training env to eval env
+        eval_env.obs_rms = env.obs_rms
+        eval_env.ret_rms = env.ret_rms
     except Exception as e:
         raise TrainingError(
             f"Failed to create evaluation environment: {e}\n"
@@ -200,6 +238,17 @@ def train(
     except Exception as e:
         raise TrainingError(
             f"Failed to save final model to {final_path}: {e}\n"
+            "Check disk space and write permissions."
+        ) from e
+
+    # Save VecNormalize statistics
+    vecnorm_path = str(final_path) + "_vecnormalize.pkl"
+    try:
+        env.save(vecnorm_path)
+        logger.info(f"VecNormalize stats saved to {vecnorm_path}")
+    except Exception as e:
+        raise TrainingError(
+            f"Failed to save VecNormalize stats to {vecnorm_path}: {e}\n"
             "Check disk space and write permissions."
         ) from e
 
