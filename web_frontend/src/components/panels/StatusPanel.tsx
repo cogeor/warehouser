@@ -1,4 +1,4 @@
-import { useAppStore } from '../../store/appStore'
+import { useAppStore, selectRobots, selectSelectedRobot } from '../../store/appStore'
 import { useRosConnection } from '../../hooks/useRosConnection'
 import type { PanelConfig, PanelProps } from '../../types/panels'
 
@@ -12,10 +12,10 @@ export function StatusPanel({ isCollapsed }: PanelProps) {
   const taskState = useAppStore((s) => s.taskState)
   const taskIntent = useAppStore((s) => s.taskIntent)
   const simTime = useAppStore((s) => s.simTime)
-  const entities = useAppStore((s) => s.entities)
+  const robots = useAppStore(selectRobots)
+  const selectedRobot = useAppStore(selectSelectedRobot)
+  const setSelectedRobotId = useAppStore((s) => s.setSelectedRobotId)
   const { connectionError, reconnectAttempt, isConnected, retryConnection } = useRosConnection()
-
-  const robot = entities.find((e) => e.type === 'robot')
 
   const stateColors: Record<string, string> = {
     IDLE: 'text-gray-400',
@@ -39,6 +39,22 @@ export function StatusPanel({ isCollapsed }: PanelProps) {
   return (
     <div className="bg-gray-800 rounded-lg p-4">
       <h2 className="text-lg font-semibold mb-3">Status</h2>
+
+      {/* Robot Selector */}
+      {robots.length > 1 && (
+        <div className="mb-3">
+          <label className="text-sm text-gray-400">Select Robot:</label>
+          <select
+            value={selectedRobot?.id ?? ''}
+            onChange={(e) => setSelectedRobotId(e.target.value)}
+            className="w-full bg-gray-700 text-white py-1 px-2 rounded mt-1"
+          >
+            {robots.map((r) => (
+              <option key={r.id} value={r.id}>{r.id}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Connection Error Display */}
       {connectionError && (
@@ -83,18 +99,18 @@ export function StatusPanel({ isCollapsed }: PanelProps) {
           <span className="text-gray-400">Time:</span>
           <span>{simTime.toFixed(2)}s</span>
         </div>
-        {robot && (
+        {selectedRobot && (
           <>
             <div className="flex justify-between">
               <span className="text-gray-400">Position:</span>
               <span>
-                ({robot.x.toFixed(2)}, {robot.y.toFixed(2)})
+                ({selectedRobot.x.toFixed(2)}, {selectedRobot.y.toFixed(2)})
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">Carrying:</span>
-              <span className={robot.isCarrying ? 'text-yellow-400' : 'text-gray-500'}>
-                {robot.isCarrying ? 'Yes' : 'No'}
+              <span className={selectedRobot.isCarrying ? 'text-yellow-400' : 'text-gray-500'}>
+                {selectedRobot.isCarrying ? 'Yes' : 'No'}
               </span>
             </div>
           </>
