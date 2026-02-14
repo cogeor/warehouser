@@ -1,0 +1,157 @@
+# Multi-Robot Coordination - Phase 0 Bug Fixes
+# Generated: 2026-02-13
+# Source: TASK.md Phase 0 critical bugs
+
+loops:
+  - id: "01"
+    summary: "Add robot-robot collision detection to WorldManager"
+    scope: |
+      - ros_ws/src/warehouser_simulation/include/warehouser_simulation/world_manager.hpp
+      - ros_ws/src/warehouser_simulation/src/world_manager.cpp
+    commit_type: "fix"
+    commit_scope: "simulation"
+    phase: "0-BugFixes"
+    status: pending
+    details: |
+      Bug 2 fix: Robots can currently overlap without collision detection.
+
+      Add checkRobotCollision(size_t robot_index) method that:
+      - Iterates all other robots
+      - Calculates distance between robot centers
+      - Returns true if distance < 2 * robot_radius (0.3f)
+
+      Modify step() to:
+      - Check robot-robot collisions after position update
+      - Rollback position if collision detected
+      - Track collision state for reward calculation
+
+      This loop is independent and foundational - must complete first.
+
+  - id: "02"
+    summary: "Add robot collision flag to Entity message and simulation"
+    scope: |
+      - ros_ws/src/warehouser_msgs/msg/Entity.msg
+      - ros_ws/src/warehouser_simulation/include/warehouser_simulation/robot.hpp
+      - ros_ws/src/warehouser_simulation/src/robot.cpp
+      - ros_ws/src/warehouser_simulation/src/world_manager.cpp
+    commit_type: "feat"
+    commit_scope: "msgs"
+    phase: "0-BugFixes"
+    depends_on: ["01"]
+    status: pending
+    details: |
+      Extend Entity.msg with collision state for reward calculation.
+
+      Add to Entity.msg:
+      - bool in_robot_collision
+
+      Update Robot class:
+      - Add in_robot_collision member
+      - Include in toMsg() serialization
+
+      Update WorldManager::step():
+      - Set robot->in_robot_collision = true when collision detected
+      - Clear flag at start of each step
+
+  - id: "03"
+    summary: "Add robot-robot collision penalty to reward system"
+    scope: |
+      - ros_ws/src/warehouser_rl_bridge/include/warehouser_rl_bridge/reward_strategy.hpp
+      - ros_ws/src/warehouser_rl_bridge/src/reward_strategy.cpp
+      - ros_ws/src/warehouser_rl_bridge/include/warehouser_rl_bridge/reward_calculator.hpp
+    commit_type: "feat"
+    commit_scope: "rl_bridge"
+    phase: "0-BugFixes"
+    depends_on: ["02"]
+    status: pending
+    details: |
+      Bug 4 fix: No penalty for robot-robot collisions.
+
+      Add RobotCollisionConfig with robot_collision_penalty (-50.0f default).
+
+      Create RobotCollisionRewardStrategy:
+      - Check Entity.in_robot_collision flag from curr_world
+      - Apply penalty when flag is true
+
+      Update CompositeRewardStrategy factory to include robot collision.
+
+      Update RewardConfig with robot_collision_penalty field.
+
+  - id: "04"
+    summary: "Implement per-robot action routing with publisher vectors"
+    scope: |
+      - ros_ws/src/warehouser_rl_bridge/include/warehouser_rl_bridge/rl_bridge_node.hpp
+      - ros_ws/src/warehouser_rl_bridge/src/rl_bridge_node.cpp
+    commit_type: "fix"
+    commit_scope: "rl_bridge"
+    phase: "0-BugFixes"
+    depends_on: ["03"]
+    status: pending
+    details: |
+      Bug 1 fix: Actions for robot_id > 0 are silently discarded.
+
+      Replace single publishers with vectors:
+      - std::vector<rclcpp::Publisher<Twist>::SharedPtr> cmd_vel_pubs_
+      - std::vector<rclcpp::Publisher<Empty>::SharedPtr> pick_pubs_
+      - std::vector<rclcpp::Publisher<Empty>::SharedPtr> unpick_pubs_
+
+      Add initializeRobotPublishers(size_t count) method:
+      - Create publishers for /robot{i}/cmd_vel, /robot{i}/sim/pick, etc.
+      - Use ROS2 namespaced topics per robot
+
+      Update sendAction():
+      - Route to cmd_vel_pubs_[robot_id]
+      - Route pick/unpick to per-robot publishers
+      - Validate robot_id < publisher count
+
+  - id: "05"
+    summary: "Pass robot_count to simulation reset service"
+    scope: |
+      - ros_ws/src/warehouser_msgs/srv/SimReset.srv (new)
+      - ros_ws/src/warehouser_simulation/src/simulation_node.cpp
+      - ros_ws/src/warehouser_rl_bridge/src/rl_bridge_node.cpp
+    commit_type: "fix"
+    commit_scope: "simulation"
+    phase: "0-BugFixes"
+    depends_on: ["04"]
+    status: pending
+    details: |
+      Bug 3 fix: Simulation doesn't accept robot_count during reset.
+
+      Create SimReset.srv (or modify existing reset):
+      - Request: int32 robot_count
+      - Response: bool success, string message
+
+      Update simulation_node reset handler:
+      - Accept robot_count parameter
+      - Call WorldManager methods to spawn N robots
+      - Clear and reinitialize robot list based on count
+
+      Update rl_bridge_node::resetSimulation():
+      - Use new SimReset service instead of std_srvs::Trigger
+      - Pass robot_count from request
+      - Initialize publishers after reset based on actual robot_count
+
+  - id: "06"
+    summary: "Add integration tests for multi-robot Phase 0 fixes"
+    scope: |
+      - ros_ws/src/warehouser_rl_bridge/test/test_multi_robot.cpp (new)
+      - ros_ws/src/warehouser_simulation/test/test_robot_collision.cpp (new)
+    commit_type: "test"
+    commit_scope: "rl_bridge"
+    phase: "0-BugFixes"
+    depends_on: ["05"]
+    status: pending
+    details: |
+      Verification tests for all Phase 0 fixes.
+
+      test_robot_collision.cpp:
+      - Test checkRobotCollision() detects overlapping robots
+      - Test collision rollback preserves positions
+      - Test collision flag is set correctly
+
+      test_multi_robot.cpp:
+      - Test reset with robot_count=3 spawns 3 robots
+      - Test actions for robot_id 0, 1, 2 all execute
+      - Test robot collision penalty applied in rewards
+      - Test per-robot publishers created correctly

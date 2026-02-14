@@ -1,0 +1,379 @@
+# Observation Space Design - Phases 1-3
+# Generated: 2026-02-13
+# Source: TASK.md
+
+loops:
+  # ============================================================================
+  # Phase 1: VecNormalize (HIGH PRIORITY)
+  # ============================================================================
+
+  - id: "01"
+    summary: "Add VecNormalize wrapper configuration to TrainingConfig"
+    scope: |
+      - training/training/models/config.py
+    commit_type: "feat"
+    commit_scope: "training"
+    phase: "1-VecNormalize"
+    status: pending
+    details: |
+      Add normalization configuration fields to TrainingConfig class:
+      - norm_obs: bool = True (normalize observations)
+      - norm_reward: bool = True (normalize rewards)
+      - clip_obs: float = 10.0 (clip normalized obs)
+      - clip_reward: float = 10.0 (clip normalized reward)
+
+      Add field validators for clip values (must be positive).
+
+      This loop adds config only - no training script changes yet.
+
+  - id: "02"
+    summary: "Integrate VecNormalize into training pipeline"
+    scope: |
+      - training/training/scripts/train.py
+    commit_type: "feat"
+    commit_scope: "training"
+    phase: "1-VecNormalize"
+    status: pending
+    depends_on: ["01"]
+    details: |
+      Modify train.py to wrap DummyVecEnv with VecNormalize:
+
+      1. Import VecNormalize from stable_baselines3.common.vec_env
+
+      2. After line 112 (env = DummyVecEnv(...)):
+         - Wrap env with VecNormalize using train_config settings
+         - Use training=True mode
+
+      3. Apply same wrapping to eval_env (line 164)
+
+      4. After model.save() (line 199):
+         - Save normalization stats: env.save(path + "_vecnormalize.pkl")
+
+      5. For resume case (line 123):
+         - Load vec_normalize stats if file exists
+         - Apply loaded stats to env
+
+  - id: "03"
+    summary: "Create evaluate.py script with frozen normalization"
+    scope: |
+      - training/training/scripts/evaluate.py
+    commit_type: "feat"
+    commit_scope: "training"
+    phase: "1-VecNormalize"
+    status: pending
+    depends_on: ["02"]
+    details: |
+      Create new evaluate.py script for model evaluation:
+
+      1. Accept CLI args: --model (path to model.zip), --episodes (count)
+
+      2. Load VecNormalize stats from model_path_vecnormalize.pkl
+
+      3. Set env.training = False (freeze running stats)
+
+      4. Run evaluation episodes and report:
+         - Mean reward
+         - Success rate
+         - Episode lengths
+
+      5. Use deterministic=True for action selection
+
+  - id: "04"
+    summary: "Add unit tests for VecNormalize configuration"
+    scope: |
+      - training/tests/test_config.py
+    commit_type: "test"
+    commit_scope: "training"
+    phase: "1-VecNormalize"
+    status: pending
+    depends_on: ["01"]
+    details: |
+      Add tests for new TrainingConfig normalization fields:
+
+      1. Test default values (norm_obs=True, norm_reward=True, etc.)
+
+      2. Test validators:
+         - clip_obs must be positive
+         - clip_reward must be positive
+
+      3. Test serialization/deserialization with normalization fields
+
+      Run: cd training && pytest tests/test_config.py -v
+
+  # ============================================================================
+  # Phase 2: V2 Lidar Completion (HIGH PRIORITY)
+  # ============================================================================
+
+  - id: "05"
+    summary: "Add buildV2 declaration and LidarSimulator reference to ObservationBuilder"
+    scope: |
+      - ros_ws/src/warehouser_observations/include/warehouser_observations/observation_builder.hpp
+    commit_type: "feat"
+    commit_scope: "observations"
+    phase: "2-V2Lidar"
+    status: pending
+    details: |
+      Modify observation_builder.hpp:
+
+      1. Forward declare LidarSimulator class (include header)
+
+      2. Add optional LidarSimulator* member to ObservationBuilder:
+         - const LidarSimulator* lidar_ = nullptr;
+
+      3. Add constructor overload that accepts LidarSimulator*:
+         - ObservationBuilder(const ObservationConfig&, const LidarSimulator*)
+
+      4. Add private buildV2 method declaration:
+         - warehouser_msgs::msg::Observation buildV2(
+             const warehouser_msgs::msg::WorldState&,
+             const warehouser_msgs::msg::Goal&,
+             size_t robot_index) const;
+
+  - id: "06"
+    summary: "Implement buildV2 lidar-based observation method"
+    scope: |
+      - ros_ws/src/warehouser_observations/src/observation_builder.cpp
+    commit_type: "feat"
+    commit_scope: "observations"
+    phase: "2-V2Lidar"
+    status: pending
+    depends_on: ["05"]
+    details: |
+      Implement buildV2 in observation_builder.cpp:
+
+      1. Add constructor overload implementation storing lidar pointer
+
+      2. Replace V2 fallback (lines 17-20) with: return buildV2(...)
+
+      3. Implement buildV2() method (63 dims):
+         - Get robot from findRobotByIndex
+         - Get lidar scan: lidar_->scan(robot->x, robot->y, robot->theta, world)
+         - Copy 60 lidar ranges to obs.data[0:60]
+         - Compute ego-centric goal bearing: atan2(dy, dx) - robot->theta
+         - Compute goal distance: sqrt(dx*dx + dy*dy)
+         - Set is_carrying flag
+
+      4. Handle null lidar_ pointer gracefully (fallback to V1 or zeros)
+
+  - id: "07"
+    summary: "Pass LidarSimulator to ObservationBuilder in ObservationsNode"
+    scope: |
+      - ros_ws/src/warehouser_observations/src/observations_node.cpp
+      - ros_ws/src/warehouser_observations/include/warehouser_observations/observations_node.hpp
+    commit_type: "feat"
+    commit_scope: "observations"
+    phase: "2-V2Lidar"
+    status: pending
+    depends_on: ["06"]
+    details: |
+      Modify observations_node.cpp constructor:
+
+      1. Initialize lidar_ before builder_ (order matters)
+
+      2. Pass lidar pointer to ObservationBuilder constructor:
+         - builder_ = ObservationBuilder(obs_config, &lidar_);
+
+      This enables V2 observation building to use the existing lidar simulator.
+
+  - id: "08"
+    summary: "Add V2 observation unit tests"
+    scope: |
+      - ros_ws/src/warehouser_observations/test/test_observation_builder.cpp
+    commit_type: "test"
+    commit_scope: "observations"
+    phase: "2-V2Lidar"
+    status: pending
+    depends_on: ["06"]
+    details: |
+      Add new test fixture and tests for V2:
+
+      1. Create V2ObservationTest fixture with:
+         - LidarSimulator instance
+         - ObservationBuilder with V2 config and lidar reference
+         - World with robot and obstacles
+
+      2. Test: V2ObservationHas63Dimensions
+         - Verify obs.data.size() == 63
+
+      3. Test: V2LidarRangesInValidRange
+         - All ranges in [0, max_range]
+
+      4. Test: V2GoalBearingEgoCentric
+         - Verify bearing is robot-relative, not world-frame
+
+      5. Test: V2GoalDistanceCorrect
+         - Verify Euclidean distance calculation
+
+      6. Test: V2CarryingFlag
+         - Verify is_carrying maps to obs.data[62]
+
+      Run: cd ros_ws && colcon test --packages-select warehouser_observations
+
+  - id: "09"
+    summary: "Add V2 obs_dim option to EnvConfig"
+    scope: |
+      - training/training/models/config.py
+      - training/training/envs/ros_env.py
+    commit_type: "feat"
+    commit_scope: "training"
+    phase: "2-V2Lidar"
+    status: pending
+    depends_on: ["06"]
+    details: |
+      Update Python config to support V2:
+
+      1. In config.py:
+         - Add comment documenting obs_dim values: V1=8, V2=63, V3=17
+         - Consider adding ObservationVersion enum for clarity
+
+      2. In ros_env.py:
+         - Ensure observation_space uses config.obs_dim
+         - Verify observation vector from ROS matches expected dimension
+
+      3. Add validation test for V2 dimension in test_config.py
+
+  # ============================================================================
+  # Phase 3: Ego-Centric V1/V3 (MEDIUM PRIORITY)
+  # ============================================================================
+
+  - id: "10"
+    summary: "Refactor V1 to remove absolute positions (ego-centric)"
+    scope: |
+      - ros_ws/src/warehouser_observations/src/observation_builder.cpp
+      - ros_ws/src/warehouser_observations/include/warehouser_observations/observation_builder.hpp
+    commit_type: "refactor"
+    commit_scope: "observations"
+    phase: "3-EgoCentric"
+    status: pending
+    details: |
+      Modify V1 observation to be ego-centric (8 -> 5 dims):
+
+      Current V1 (8 dims):
+      [robot_x, robot_y, robot_theta, goal_dx, goal_dy, goal_dist, goal_heading, is_carrying]
+
+      New V1 (5 dims):
+      [goal_dx, goal_dy, goal_dist, goal_heading, is_carrying]
+
+      Changes:
+      1. In buildV1(): Remove obs.data[0], [1], [2] (absolute robot pose)
+      2. Shift remaining values to indices 0-4
+      3. Update observationDim() for V1 case: return 5
+      4. Update header comment for V1_Position enum
+
+      BREAKING CHANGE: Existing V1 models will be incompatible.
+
+  - id: "11"
+    summary: "Update V1 unit tests for new 5-dim observation"
+    scope: |
+      - ros_ws/src/warehouser_observations/test/test_observation_builder.cpp
+    commit_type: "test"
+    commit_scope: "observations"
+    phase: "3-EgoCentric"
+    status: pending
+    depends_on: ["10"]
+    details: |
+      Update V1 tests for new ego-centric format:
+
+      1. Change V1ObservationHas8Dimensions -> V1ObservationHas5Dimensions
+         - EXPECT_EQ(obs.data.size(), 5u)
+
+      2. Remove RobotPositionInObservation test (no longer applicable)
+
+      3. Update GoalDeltaCalculation:
+         - EXPECT_FLOAT_EQ(obs.data[0], 3.0f)  // was [3]
+         - EXPECT_FLOAT_EQ(obs.data[1], 4.0f)  // was [4]
+
+      4. Update GoalDistanceCalculation:
+         - EXPECT_NEAR(obs.data[2], 5.0f, ...)  // was [5]
+
+      5. Update GoalHeading tests:
+         - Use obs.data[3] instead of [6]
+
+      6. Update CarryingFlag tests:
+         - Use obs.data[4] instead of [7]
+
+      Run: cd ros_ws && colcon test --packages-select warehouser_observations
+
+  - id: "12"
+    summary: "Refactor V3 to remove absolute ego position"
+    scope: |
+      - ros_ws/src/warehouser_observations/src/observation_builder.cpp
+      - ros_ws/src/warehouser_observations/include/warehouser_observations/observation_builder.hpp
+    commit_type: "refactor"
+    commit_scope: "observations"
+    phase: "3-EgoCentric"
+    status: pending
+    depends_on: ["10"]
+    details: |
+      Modify V3 observation to be ego-centric (17 -> 14 dims for max_other=3):
+
+      Current V3 (17 dims):
+      [ego_state(8), other_1(3), other_2(3), other_3(3)]
+
+      New V3 (14 dims):
+      [ego_state(5), other_1(3), other_2(3), other_3(3)]
+
+      Changes:
+      1. In buildV3(): Use same 5-dim ego state as V1
+         - Remove absolute position (x, y, theta)
+         - Keep: goal_dx, goal_dy, goal_dist, goal_heading, is_carrying
+
+      2. Update other robot indices: base = 5 + i * 3 (was 8 + i * 3)
+
+      3. Update observationDim() for V3 case: return 5 + 3 * max_other_robots
+
+      4. Update header comment for V3_MultiRobot enum
+
+  - id: "13"
+    summary: "Update V3 unit tests for new 14-dim observation"
+    scope: |
+      - ros_ws/src/warehouser_observations/test/test_observation_builder.cpp
+    commit_type: "test"
+    commit_scope: "observations"
+    phase: "3-EgoCentric"
+    status: pending
+    depends_on: ["12"]
+    details: |
+      Update V3 tests for new ego-centric format:
+
+      1. ObservationDimWithMaxOtherRobots:
+         - EXPECT_EQ(builder.observationDim(), 14u)  // was 17
+
+      2. V3ObservationHasCorrectSize:
+         - EXPECT_EQ(obs.data.size(), 14u)  // was 17
+
+      3. V3EgoStateFirst8DimsMatchV1 -> V3EgoStateFirst5DimsMatchV1:
+         - Compare first 5 dims only
+
+      4. Update all other robot relative position tests:
+         - obs.data[5], [6], [7] for first other robot (was [8], [9], [10])
+         - obs.data[8], [9], [10] for second (was [11], [12], [13])
+         - etc.
+
+      5. Update padding tests for new indices
+
+      Run: cd ros_ws && colcon test --packages-select warehouser_observations
+
+  - id: "14"
+    summary: "Update Python config defaults for ego-centric observations"
+    scope: |
+      - training/training/models/config.py
+    commit_type: "fix"
+    commit_scope: "training"
+    phase: "3-EgoCentric"
+    status: pending
+    depends_on: ["12"]
+    details: |
+      Update default obs_dim values in Python configs:
+
+      1. EnvConfig:
+         - Change obs_dim default: 8 -> 5
+         - Add comment: "V1 ego-centric: 5 dims"
+
+      2. MultiAgentConfig:
+         - Change obs_dim default: 17 -> 14
+         - Add comment: "V3 ego-centric with max_other_robots=3: 14 dims"
+
+      3. Add docstring note about breaking change in observation format
+
+      4. Consider adding migration guide comment for users with existing models

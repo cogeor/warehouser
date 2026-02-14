@@ -1,8 +1,8 @@
 /**
- * Design 3: Split View
+ * Main application layout.
  *
- * Right sidebar with controls/status.
- * Traditional simulation layout, like ROS Rviz.
+ * Left sidebar with controls/status, canvas centered on right.
+ * Professional simulation layout inspired by ROS Rviz.
  */
 
 import { SimulationCanvas } from '../components/SimulationCanvas'
@@ -14,13 +14,8 @@ import { useAppStore } from '../store/appStore'
 export function LayoutSplit() {
   return (
     <div className="min-h-screen bg-white flex">
-      {/* Main canvas area */}
-      <main className="flex-1 flex items-center justify-center p-6 bg-gray-50">
-        <SimulationCanvas />
-      </main>
-
-      {/* Right sidebar */}
-      <aside className="w-56 bg-white border-l border-gray-200 flex flex-col">
+      {/* Left sidebar */}
+      <aside className="w-56 bg-white border-r border-gray-200 flex flex-col">
         {/* Header */}
         <div className="px-4 py-3 border-b border-gray-100">
           <div className="flex items-center justify-between">
@@ -49,6 +44,11 @@ export function LayoutSplit() {
           <StatusDisplay variant="full" />
         </div>
       </aside>
+
+      {/* Main canvas area */}
+      <main className="flex-1 flex items-center justify-center p-6 bg-gray-50">
+        <SimulationCanvas />
+      </main>
     </div>
   )
 }

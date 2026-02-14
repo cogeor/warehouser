@@ -1,0 +1,47 @@
+loops:
+  - id: "01"
+    summary: "Add missing ROS2 nav-msgs and sensor-msgs dependencies to CI and Dockerfile"
+    scope: ".github/workflows/ci.yml, Dockerfile"
+    commit_type: "fix"
+    commit_scope: "ci"
+    status: pending
+
+  - id: "02"
+    summary: "Create modern ROS2 CI workflow using action-ros-ci with automatic rosdep"
+    scope: ".github/workflows/ros2-ci.yaml"
+    commit_type: "feat"
+    commit_scope: "ci"
+    depends_on: ["01"]
+    status: pending
+
+  - id: "03"
+    summary: "Create dedicated Python CI workflow for training tests with uv and mypy"
+    scope: ".github/workflows/python-ci.yaml"
+    commit_type: "feat"
+    commit_scope: "ci"
+    depends_on: ["01"]
+    status: pending
+
+  - id: "04"
+    summary: "Create dedicated TypeScript CI workflow for web frontend tests"
+    scope: ".github/workflows/typescript-ci.yaml"
+    commit_type: "feat"
+    commit_scope: "ci"
+    depends_on: ["01"]
+    status: pending
+
+  - id: "05"
+    summary: "Refactor main CI workflow to use reusable workflows with path-based triggers"
+    scope: ".github/workflows/ci.yml"
+    commit_type: "refactor"
+    commit_scope: "ci"
+    depends_on: ["02", "03", "04"]
+    status: pending
+
+  - id: "06"
+    summary: "Clean up tracked cache files and update .gitignore"
+    scope: ".gitignore, training/.coverage, training/__pycache__"
+    commit_type: "chore"
+    commit_scope: "repo"
+    depends_on: ["01"]
+    status: pending

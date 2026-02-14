@@ -1,0 +1,382 @@
+loops:
+  # ============================================================================
+  # Phase 1: Foundation - Type Safety and Utilities
+  # ============================================================================
+
+  - id: "01"
+    summary: "Create ROS message TypeScript interfaces"
+    scope: "web_frontend/src/types/warehouser_msgs.ts (new file)"
+    commit_type: "feat"
+    commit_scope: "types"
+    phase: "1-Foundation"
+    status: complete
+    commit: "2861ec7"
+
+  - id: "02"
+    summary: "Create CoordinateTransform class with unit tests"
+    scope: "web_frontend/src/utils/transforms.ts, web_frontend/src/utils/transforms.test.ts (new files)"
+    commit_type: "feat"
+    commit_scope: "utils"
+    phase: "1-Foundation"
+    status: complete
+    commit: "598cb4e"
+
+  - id: "03"
+    summary: "Create centralized configuration module"
+    scope: "web_frontend/src/config/index.ts, web_frontend/.env.example (new files)"
+    commit_type: "feat"
+    commit_scope: "config"
+    phase: "1-Foundation"
+    status: complete
+    commit: "c4eb5ee"
+
+  - id: "04"
+    summary: "Create roslib type declarations for build fix"
+    scope: "web_frontend/src/types/roslib.d.ts (new file)"
+    commit_type: "fix"
+    commit_scope: "types"
+    phase: "1-Foundation"
+    status: complete
+    commit: "5732d75"
+
+  - id: "05"
+    summary: "Fix Canvas.test.tsx type errors and unused variables"
+    scope: "web_frontend/src/components/Canvas.test.tsx"
+    commit_type: "fix"
+    commit_scope: "tests"
+    phase: "1-Foundation"
+    status: complete
+    commit: "3300bb2"
+
+  # ============================================================================
+  # Phase 2: ROS Connection Refactor
+  # ============================================================================
+
+  - id: "06"
+    summary: "Create RosConnection class with lifecycle management"
+    scope: "web_frontend/src/ros/RosConnection.ts (new file)"
+    commit_type: "feat"
+    commit_scope: "ros"
+    phase: "2-ROS-Connection"
+    depends_on: ["01", "03"]
+    status: complete
+    commit: "0fe5ade"
+
+  - id: "07"
+    summary: "Create type-safe topic subscription utilities"
+    scope: "web_frontend/src/ros/subscriptions.ts (new file)"
+    commit_type: "feat"
+    commit_scope: "ros"
+    phase: "2-ROS-Connection"
+    depends_on: ["01", "06"]
+    status: complete
+    commit: "24ce920"
+
+  - id: "08"
+    summary: "Create RosConnectionProvider context component"
+    scope: "web_frontend/src/hooks/useRosConnection.tsx (new file)"
+    commit_type: "feat"
+    commit_scope: "hooks"
+    phase: "2-ROS-Connection"
+    depends_on: ["06"]
+    status: complete
+    commit: "424ac2a"
+
+  - id: "09"
+    summary: "Create useRosTopic and useThrottledTopic hooks"
+    scope: "web_frontend/src/hooks/useRosTopic.ts (new file)"
+    commit_type: "feat"
+    commit_scope: "hooks"
+    phase: "2-ROS-Connection"
+    depends_on: ["08"]
+    status: complete
+    commit: "09a0d56"
+
+  - id: "10"
+    summary: "Integrate RosConnectionProvider into App.tsx"
+    scope: "web_frontend/src/App.tsx"
+    commit_type: "refactor"
+    commit_scope: "app"
+    phase: "2-ROS-Connection"
+    depends_on: ["08", "09"]
+    status: complete
+    commit: "55285b5"
+
+  - id: "11"
+    summary: "Deprecate old connection.ts module"
+    scope: "web_frontend/src/ros/connection.ts"
+    commit_type: "refactor"
+    commit_scope: "ros"
+    phase: "2-ROS-Connection"
+    depends_on: ["10"]
+    status: complete
+    commit: "6ee8bfa"
+
+  # ============================================================================
+  # Phase 3: Canvas Modularization
+  # ============================================================================
+
+  - id: "12"
+    summary: "Create useEntityAnimation hook for Konva refs"
+    scope: "web_frontend/src/hooks/useEntityAnimation.ts (new file)"
+    commit_type: "feat"
+    commit_scope: "hooks"
+    phase: "3-Canvas"
+    status: pending
+
+  - id: "13"
+    summary: "Create CanvasFloor component for floor tile rendering"
+    scope: "web_frontend/src/components/canvas/CanvasFloor.tsx (new file)"
+    commit_type: "feat"
+    commit_scope: "canvas"
+    phase: "3-Canvas"
+    depends_on: ["02"]
+    status: pending
+
+  - id: "14"
+    summary: "Create CanvasWalls component for wall rendering"
+    scope: "web_frontend/src/components/canvas/CanvasWalls.tsx (new file)"
+    commit_type: "feat"
+    commit_scope: "canvas"
+    phase: "3-Canvas"
+    depends_on: ["02"]
+    status: pending
+
+  - id: "15"
+    summary: "Create CanvasZones component for zone rendering"
+    scope: "web_frontend/src/components/canvas/CanvasZones.tsx (new file)"
+    commit_type: "feat"
+    commit_scope: "canvas"
+    phase: "3-Canvas"
+    depends_on: ["02"]
+    status: pending
+
+  - id: "16"
+    summary: "Create CanvasObjects component with drag interaction"
+    scope: "web_frontend/src/components/canvas/CanvasObjects.tsx (new file)"
+    commit_type: "feat"
+    commit_scope: "canvas"
+    phase: "3-Canvas"
+    depends_on: ["02", "12"]
+    status: pending
+
+  - id: "17"
+    summary: "Create CanvasRobot component with animation"
+    scope: "web_frontend/src/components/canvas/CanvasRobot.tsx (new file)"
+    commit_type: "feat"
+    commit_scope: "canvas"
+    phase: "3-Canvas"
+    depends_on: ["02", "12"]
+    status: pending
+
+  - id: "18"
+    summary: "Create CanvasLidar component for lidar visualization"
+    scope: "web_frontend/src/components/canvas/CanvasLidar.tsx (new file)"
+    commit_type: "feat"
+    commit_scope: "canvas"
+    phase: "3-Canvas"
+    depends_on: ["02"]
+    status: pending
+
+  - id: "19"
+    summary: "Create canvas sub-component barrel export"
+    scope: "web_frontend/src/components/canvas/index.ts (new file)"
+    commit_type: "chore"
+    commit_scope: "canvas"
+    phase: "3-Canvas"
+    depends_on: ["13", "14", "15", "16", "17", "18"]
+    status: pending
+
+  - id: "20"
+    summary: "Refactor Canvas.tsx to use sub-components"
+    scope: "web_frontend/src/components/Canvas.tsx"
+    commit_type: "refactor"
+    commit_scope: "canvas"
+    phase: "3-Canvas"
+    depends_on: ["19"]
+    status: pending
+
+  - id: "21"
+    summary: "Add unit tests for canvas sub-components"
+    scope: "web_frontend/src/components/canvas/*.test.tsx (new files)"
+    commit_type: "test"
+    commit_scope: "canvas"
+    phase: "3-Canvas"
+    depends_on: ["20"]
+    status: pending
+
+  # ============================================================================
+  # Phase 4: Panel System Architecture
+  # ============================================================================
+
+  - id: "22"
+    summary: "Create Panel interfaces and PanelRegistry class"
+    scope: "web_frontend/src/types/panels.ts (new file)"
+    commit_type: "feat"
+    commit_scope: "panels"
+    phase: "4-Panels"
+    status: pending
+
+  - id: "23"
+    summary: "Create ConnectionStatus indicator component"
+    scope: "web_frontend/src/components/ConnectionStatus.tsx (new file)"
+    commit_type: "feat"
+    commit_scope: "ui"
+    phase: "4-Panels"
+    depends_on: ["08"]
+    status: pending
+
+  - id: "24"
+    summary: "Convert StatusPanel to panel interface"
+    scope: "web_frontend/src/components/panels/StatusPanel.tsx (new file), web_frontend/src/components/StatusPanel.tsx"
+    commit_type: "refactor"
+    commit_scope: "panels"
+    phase: "4-Panels"
+    depends_on: ["22"]
+    status: pending
+
+  - id: "25"
+    summary: "Convert ControlPanel to panel interface"
+    scope: "web_frontend/src/components/panels/ControlPanel.tsx (new file), web_frontend/src/components/ControlPanel.tsx"
+    commit_type: "refactor"
+    commit_scope: "panels"
+    phase: "4-Panels"
+    depends_on: ["22"]
+    status: pending
+
+  - id: "26"
+    summary: "Convert ObjectivePanel to panel interface"
+    scope: "web_frontend/src/components/panels/ObjectivePanel.tsx (new file), web_frontend/src/components/ObjectivePanel.tsx"
+    commit_type: "refactor"
+    commit_scope: "panels"
+    phase: "4-Panels"
+    depends_on: ["22"]
+    status: pending
+
+  - id: "27"
+    summary: "Create MapPanel wrapping Canvas with configuration"
+    scope: "web_frontend/src/components/panels/MapPanel.tsx (new file)"
+    commit_type: "feat"
+    commit_scope: "panels"
+    phase: "4-Panels"
+    depends_on: ["20", "22"]
+    status: pending
+
+  - id: "28"
+    summary: "Create panel barrel export and register all panels"
+    scope: "web_frontend/src/components/panels/index.ts (new file)"
+    commit_type: "chore"
+    commit_scope: "panels"
+    phase: "4-Panels"
+    depends_on: ["24", "25", "26", "27"]
+    status: pending
+
+  - id: "29"
+    summary: "Update App.tsx to use panel system"
+    scope: "web_frontend/src/App.tsx"
+    commit_type: "refactor"
+    commit_scope: "app"
+    phase: "4-Panels"
+    depends_on: ["23", "28"]
+    status: pending
+
+  # ============================================================================
+  # Phase 5: Enhanced Features
+  # ============================================================================
+
+  - id: "30"
+    summary: "Add multi-robot support to Entity interface"
+    scope: "web_frontend/src/store/appStore.ts"
+    commit_type: "feat"
+    commit_scope: "store"
+    phase: "5-Features"
+    depends_on: ["01"]
+    status: pending
+
+  - id: "31"
+    summary: "Update CanvasRobot to support multiple robots"
+    scope: "web_frontend/src/components/canvas/CanvasRobot.tsx"
+    commit_type: "feat"
+    commit_scope: "canvas"
+    phase: "5-Features"
+    depends_on: ["17", "30"]
+    status: pending
+
+  - id: "32"
+    summary: "Add robot selector to StatusPanel"
+    scope: "web_frontend/src/components/panels/StatusPanel.tsx"
+    commit_type: "feat"
+    commit_scope: "panels"
+    phase: "5-Features"
+    depends_on: ["24", "30"]
+    status: pending
+
+  - id: "33"
+    summary: "Add zoom controls to MapPanel"
+    scope: "web_frontend/src/components/panels/MapPanel.tsx"
+    commit_type: "feat"
+    commit_scope: "panels"
+    phase: "5-Features"
+    depends_on: ["27"]
+    status: pending
+
+  - id: "34"
+    summary: "Add pan support to canvas"
+    scope: "web_frontend/src/components/Canvas.tsx"
+    commit_type: "feat"
+    commit_scope: "canvas"
+    phase: "5-Features"
+    depends_on: ["20", "33"]
+    status: pending
+
+  - id: "35"
+    summary: "Add layer visibility toggles to MapPanel"
+    scope: "web_frontend/src/components/panels/MapPanel.tsx"
+    commit_type: "feat"
+    commit_scope: "panels"
+    phase: "5-Features"
+    depends_on: ["33"]
+    status: pending
+
+  - id: "36"
+    summary: "Create FPS counter component"
+    scope: "web_frontend/src/components/FpsCounter.tsx (new file)"
+    commit_type: "feat"
+    commit_scope: "ui"
+    phase: "5-Features"
+    status: pending
+
+  - id: "37"
+    summary: "Create performance metrics hook"
+    scope: "web_frontend/src/hooks/usePerformanceMetrics.ts (new file)"
+    commit_type: "feat"
+    commit_scope: "hooks"
+    phase: "5-Features"
+    status: pending
+
+  - id: "38"
+    summary: "Add configuration persistence to localStorage"
+    scope: "web_frontend/src/hooks/usePanelConfig.ts (new file)"
+    commit_type: "feat"
+    commit_scope: "hooks"
+    phase: "5-Features"
+    depends_on: ["22"]
+    status: pending
+
+  - id: "39"
+    summary: "Integrate performance monitoring into App"
+    scope: "web_frontend/src/App.tsx"
+    commit_type: "feat"
+    commit_scope: "app"
+    phase: "5-Features"
+    depends_on: ["36", "37", "38"]
+    status: pending
+
+  - id: "40"
+    summary: "Final cleanup and documentation"
+    scope: "web_frontend/README.md, web_frontend/src/types/index.ts"
+    commit_type: "docs"
+    commit_scope: "frontend"
+    phase: "5-Features"
+    depends_on: ["39"]
+    status: pending

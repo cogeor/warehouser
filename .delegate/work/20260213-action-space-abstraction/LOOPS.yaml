@@ -1,0 +1,512 @@
+# Action Space Abstraction - Phases 1-3, 5
+# Generated: 2026-02-13
+# Source: TASK.md
+# Note: Phase 4 (Multi-Robot Action Routing) skipped - already implemented in Study 4
+
+loops:
+  # =============================================================================
+  # PHASE 1: Python Action Wrappers
+  # =============================================================================
+
+  - id: "01"
+    summary: "Create wrappers module with ActionScalingWrapper"
+    scope: |
+      - training/training/wrappers/__init__.py (CREATE)
+      - training/training/wrappers/action_scaling.py (CREATE)
+    commit_type: "feat"
+    commit_scope: "wrappers"
+    phase: "1-Wrappers"
+    status: pending
+    details: |
+      Create the wrappers module and implement ActionScalingWrapper:
+
+      1. Create training/training/wrappers/__init__.py with exports
+      2. Create ActionScalingWrapper(gym.ActionWrapper):
+         - Maps normalized [-1,1] actions to physical velocity limits
+         - Constructor: (env, velocity_limits: dict[str, float])
+           - velocity_limits: {"linear": 0.5, "angular": 1.0} in m/s and rad/s
+         - action() method:
+           - Scale action[0] (linear) by velocity_limits["linear"]
+           - Scale action[1] (angular) by velocity_limits["angular"]
+           - Keep action[2:] (pick/place) in [-1, 1] for threshold processing
+
+      Type hints: Full typing with numpy NDArray, dict[str, float]
+      Docstrings: Google style with Args, Returns, Examples
+
+  - id: "02"
+    summary: "Implement ActionSmoothingWrapper with EMA filter"
+    scope: |
+      - training/training/wrappers/action_smoothing.py (CREATE)
+      - training/training/wrappers/__init__.py (MODIFY)
+    commit_type: "feat"
+    commit_scope: "wrappers"
+    phase: "1-Wrappers"
+    status: pending
+    depends_on: ["01"]
+    details: |
+      Implement EMA-based action smoothing for velocity commands:
+
+      1. Create ActionSmoothingWrapper(gym.ActionWrapper):
+         - Constructor: (env, alpha: float = 0.3)
+           - alpha in [0, 1]: 0 = max smoothing, 1 = no smoothing
+         - State: prev_action: np.ndarray | None
+         - action() method:
+           - If prev_action is None, initialize and return raw action
+           - Apply EMA: smoothed[:2] = alpha * action[:2] + (1 - alpha) * prev_action[:2]
+           - Only smooth velocity (indices 0-1), not discrete actions (indices 2-3)
+           - Update prev_action with smoothed result
+         - reset() method:
+           - Clear prev_action to None
+           - Call super().reset() and return result
+
+      2. Update __init__.py to export ActionSmoothingWrapper
+
+  - id: "03"
+    summary: "Implement AccelerationLimitWrapper for realistic dynamics"
+    scope: |
+      - training/training/wrappers/accel_limit.py (CREATE)
+      - training/training/wrappers/__init__.py (MODIFY)
+    commit_type: "feat"
+    commit_scope: "wrappers"
+    phase: "1-Wrappers"
+    status: pending
+    depends_on: ["01"]
+    details: |
+      Implement acceleration limiting for realistic motor dynamics:
+
+      1. Create AccelerationLimitWrapper(gym.ActionWrapper):
+         - Constructor: (env, max_delta: dict[str, float], dt: float = 0.05)
+           - max_delta: {"linear": 2.0, "angular": 4.0} in m/s^2 and rad/s^2
+           - dt: simulation timestep in seconds
+         - State: prev_velocity = np.zeros(2, dtype=np.float32)
+         - action() method:
+           - Compute desired acceleration: accel = (action[:2] - prev_velocity) / dt
+           - Clip acceleration to [-max_linear_accel, max_linear_accel] and [-max_angular_accel, max_angular_accel]
+           - Compute clamped velocity: prev_velocity + accel * dt
+           - Update prev_velocity
+           - Return action with clamped velocity
+         - reset() method:
+           - Reset prev_velocity to zeros
+           - Call super().reset() and return result
+
+      2. Update __init__.py to export AccelerationLimitWrapper
+
+  - id: "04"
+    summary: "Implement SafetyClippingWrapper for hard bounds"
+    scope: |
+      - training/training/wrappers/safety.py (CREATE)
+      - training/training/wrappers/__init__.py (MODIFY)
+    commit_type: "feat"
+    commit_scope: "wrappers"
+    phase: "1-Wrappers"
+    status: pending
+    depends_on: ["01"]
+    details: |
+      Implement final safety clipping layer:
+
+      1. Create SafetyClippingWrapper(gym.ActionWrapper):
+         - Constructor: (env, hard_limits: dict[str, tuple[float, float]])
+           - hard_limits: {"linear": (-0.5, 0.5), "angular": (-1.0, 1.0)}
+         - action() method:
+           - Clip action[0] to hard_limits["linear"] range
+           - Clip action[1] to hard_limits["angular"] range
+           - Return clipped action
+
+      2. Update __init__.py to export SafetyClippingWrapper
+
+  - id: "05"
+    summary: "Create environment factory with wrapper chain"
+    scope: |
+      - training/training/envs/factory.py (CREATE)
+      - training/training/envs/__init__.py (MODIFY)
+    commit_type: "feat"
+    commit_scope: "envs"
+    phase: "1-Wrappers"
+    status: pending
+    depends_on: ["01", "02", "03", "04"]
+    details: |
+      Create factory function for fully wrapped environment:
+
+      1. Create training/training/envs/factory.py:
+         - create_warehouser_env(config: dict) -> gym.Env:
+           - Pipeline order:
+             1. Base ROSGymEnv(config.get("env_config"))
+             2. ActionScalingWrapper with velocity_limits from config
+             3. ActionSmoothingWrapper (if config.get("enable_smoothing", True))
+             4. AccelerationLimitWrapper (if config.get("enable_accel_limits", True))
+             5. SafetyClippingWrapper with hard_limits
+             6. TimeLimit(max_episode_steps from config)
+           - Config keys:
+             - env_config: EnvConfig for base environment
+             - max_linear_vel: float (default 0.5)
+             - max_angular_vel: float (default 1.0)
+             - enable_smoothing: bool (default True)
+             - smoothing_alpha: float (default 0.3)
+             - enable_accel_limits: bool (default True)
+             - max_linear_accel: float (default 2.0)
+             - max_angular_accel: float (default 4.0)
+             - timestep: float (default 0.05)
+             - max_episode_steps: int (default 500)
+
+      2. Update training/training/envs/__init__.py to export create_warehouser_env
+
+  - id: "06"
+    summary: "Add action configuration fields to EnvConfig"
+    scope: |
+      - training/training/models/config.py (MODIFY)
+    commit_type: "feat"
+    commit_scope: "config"
+    phase: "1-Wrappers"
+    status: pending
+    depends_on: ["01"]
+    details: |
+      Add action processing configuration to EnvConfig:
+
+      1. Add new Pydantic model ActionConfig:
+         - max_linear_vel: float = 0.5 (m/s)
+         - max_angular_vel: float = 1.0 (rad/s)
+         - enable_smoothing: bool = True
+         - smoothing_alpha: float = 0.3 (in [0, 1])
+         - enable_accel_limits: bool = True
+         - max_linear_accel: float = 2.0 (m/s^2)
+         - max_angular_accel: float = 4.0 (rad/s^2)
+         - timestep: float = 0.05 (seconds)
+         - discrete_threshold: float = 0.5 (for pick/place)
+
+      2. Add validators:
+         - smoothing_alpha in [0, 1]
+         - velocities and accelerations positive
+         - discrete_threshold in (0, 1)
+
+      3. Add action: ActionConfig field to EnvConfig with default_factory
+
+  # =============================================================================
+  # PHASE 2: RLBridge Safety Integration
+  # =============================================================================
+
+  - id: "07"
+    summary: "Add SafetyController dependency to RLBridge package"
+    scope: |
+      - ros_ws/src/warehouser_rl_bridge/CMakeLists.txt (MODIFY)
+      - ros_ws/src/warehouser_rl_bridge/package.xml (MODIFY)
+    commit_type: "feat"
+    commit_scope: "rl_bridge"
+    phase: "2-Safety"
+    status: pending
+    details: |
+      Add warehouser_safety as a dependency to rl_bridge package:
+
+      1. CMakeLists.txt:
+         - Add find_package(warehouser_safety REQUIRED)
+         - Add warehouser_safety to ament_target_dependencies for rl_bridge_node
+
+      2. package.xml:
+         - Add <depend>warehouser_safety</depend>
+
+  - id: "08"
+    summary: "Integrate SafetyController into RLBridgeNode"
+    scope: |
+      - ros_ws/src/warehouser_rl_bridge/include/warehouser_rl_bridge/rl_bridge_node.hpp (MODIFY)
+      - ros_ws/src/warehouser_rl_bridge/src/rl_bridge_node.cpp (MODIFY)
+    commit_type: "feat"
+    commit_scope: "rl_bridge"
+    phase: "2-Safety"
+    status: pending
+    depends_on: ["07"]
+    details: |
+      Integrate SafetyController into action execution:
+
+      1. rl_bridge_node.hpp:
+         - Add #include "warehouser_safety/safety_controller.hpp"
+         - Add member: std::unique_ptr<warehouser_safety::SafetyController> safety_controller_;
+         - Add member: warehouser_safety::SafetyConfig safety_config_;
+         - Add member: float v_max_ = 1.0f;
+         - Add member: float omega_max_ = 2.0f;
+         - Add member: std::vector<warehouser_safety::LidarData> last_lidar_data_;
+         - Add member: std::vector<bool> robots_carrying_;
+
+      2. rl_bridge_node.cpp:
+         - In constructor:
+           - Declare parameters: v_max, omega_max, safety_min_distance, safety_slowdown_distance
+           - Initialize safety_config_ with parameters
+           - Create safety_controller_ with safety_config_
+           - Subscribe to lidar topic(s) to cache last_lidar_data_
+         - In sendAction():
+           - Scale actions: cmd.linear = linear * v_max_, cmd.angular = angular * omega_max_
+           - Apply safety: safe_cmd = safety_controller_->applySafetyLimits(cmd, last_lidar_data_[robot_id])
+           - Publish safe_cmd instead of raw cmd
+           - For pick/place: check robots_carrying_[robot_id] state before allowing action
+
+  - id: "09"
+    summary: "Add velocity limit parameters to RLBridgeNode"
+    scope: |
+      - ros_ws/src/warehouser_rl_bridge/src/rl_bridge_node.cpp (MODIFY)
+    commit_type: "feat"
+    commit_scope: "rl_bridge"
+    phase: "2-Safety"
+    status: pending
+    depends_on: ["08"]
+    details: |
+      Make velocity limits configurable via ROS parameters:
+
+      1. Add parameters in constructor:
+         - v_max_ = declare_parameter("v_max", 1.0);
+         - omega_max_ = declare_parameter("omega_max", 2.0);
+         - Log parameters: "Velocity limits: v_max={}, omega_max={}"
+
+      2. Document in code comments:
+         - Actions are normalized to [-1, 1] at policy output
+         - v_max and omega_max define physical velocity limits in m/s and rad/s
+         - Scaling: physical_vel = normalized_action * limit
+
+  # =============================================================================
+  # PHASE 3: Discrete Action Feedback
+  # =============================================================================
+
+  - id: "10"
+    summary: "Extend RLStep.srv with action feedback fields"
+    scope: |
+      - ros_ws/src/warehouser_msgs/srv/RLStep.srv (MODIFY)
+    commit_type: "feat"
+    commit_scope: "msgs"
+    phase: "3-Feedback"
+    status: pending
+    details: |
+      Add safety and discrete action feedback to RLStep response:
+
+      1. Add to response section of RLStep.srv:
+         - uint8 safety_state        # 0=NOMINAL, 1=SLOWDOWN, 2=EMERGENCY
+         - bool pick_success         # Did pick action succeed this step?
+         - bool place_success        # Did place action succeed this step?
+         - bool is_carrying          # Robot carrying state (for action masking)
+
+      2. Add comments documenting:
+         - Safety state enum values
+         - Pick/place success semantics (true only if action was attempted AND succeeded)
+         - is_carrying for Python-side action masking
+
+  - id: "11"
+    summary: "Return action feedback in RLBridge handleRLStep"
+    scope: |
+      - ros_ws/src/warehouser_rl_bridge/src/rl_bridge_node.cpp (MODIFY)
+      - ros_ws/src/warehouser_rl_bridge/include/warehouser_rl_bridge/rl_bridge_node.hpp (MODIFY)
+    commit_type: "feat"
+    commit_scope: "rl_bridge"
+    phase: "3-Feedback"
+    status: pending
+    depends_on: ["08", "10"]
+    details: |
+      Return action feedback in RLStep response:
+
+      1. Track pick/place success:
+         - In sendAction(), track whether pick/place was attempted and succeeded
+         - Compare robots_carrying_ before and after action
+         - pick_success = !was_carrying && now_carrying
+         - place_success = was_carrying && !now_carrying
+
+      2. In handleRLStep():
+         - Set response->safety_state from safety_controller_->getState()
+           - Map SafetyState::NOMINAL -> 0
+           - Map SafetyState::SLOWDOWN -> 1
+           - Map SafetyState::EMERGENCY -> 2
+         - Set response->pick_success and response->place_success
+         - Set response->is_carrying from robots_carrying_[robot_id]
+
+      3. Update header if needed for tracking state
+
+  - id: "12"
+    summary: "Add action masking to ROSGymEnv step method"
+    scope: |
+      - training/training/envs/ros_env.py (MODIFY)
+    commit_type: "feat"
+    commit_scope: "envs"
+    phase: "3-Feedback"
+    status: pending
+    depends_on: ["10"]
+    details: |
+      Add action masking and feedback to ROSGymEnv:
+
+      1. Add instance variable: _is_carrying: bool = False
+
+      2. In reset() method:
+         - Reset _is_carrying = False
+
+      3. In step() method:
+         - Before sending action, apply masking:
+           - If _is_carrying and action[2] > 0.5: action[2] = 0.0 (prevent pick while carrying)
+           - If not _is_carrying and action[3] > 0.5: action[3] = 0.0 (prevent place while not carrying)
+         - After receiving response:
+           - Update _is_carrying from response.is_carrying
+           - Add to info dict: "safety_state", "pick_success", "place_success", "is_carrying"
+
+      4. Document in docstring:
+         - Discrete action encoding: threshold = 0.5
+         - Action masking prevents invalid pick/place commands
+
+  # =============================================================================
+  # PHASE 5: Documentation and Testing
+  # =============================================================================
+
+  - id: "13"
+    summary: "Add unit tests for action wrappers"
+    scope: |
+      - training/tests/test_action_wrappers.py (CREATE)
+    commit_type: "test"
+    commit_scope: "wrappers"
+    phase: "5-Testing"
+    status: pending
+    depends_on: ["01", "02", "03", "04"]
+    details: |
+      Create comprehensive unit tests for action wrappers:
+
+      1. TestActionScalingWrapper:
+         - test_scales_linear_velocity()
+         - test_scales_angular_velocity()
+         - test_preserves_discrete_actions()
+         - test_handles_negative_values()
+         - test_boundary_values()
+
+      2. TestActionSmoothingWrapper:
+         - test_first_action_unsmoothed()
+         - test_ema_smoothing_applied()
+         - test_alpha_zero_no_change()
+         - test_alpha_one_no_smoothing()
+         - test_reset_clears_state()
+         - test_discrete_actions_unsmoothed()
+
+      3. TestAccelerationLimitWrapper:
+         - test_within_limits_unchanged()
+         - test_exceeds_limits_clamped()
+         - test_reset_clears_velocity()
+         - test_negative_acceleration()
+         - test_dt_parameter()
+
+      4. TestSafetyClippingWrapper:
+         - test_clips_to_hard_limits()
+         - test_within_limits_unchanged()
+         - test_negative_values_clipped()
+
+      Use mock Gymnasium environment for isolation.
+      Run with: pytest tests/test_action_wrappers.py -v
+
+  - id: "14"
+    summary: "Add integration test for wrapper chain"
+    scope: |
+      - training/tests/test_action_wrappers.py (MODIFY)
+    commit_type: "test"
+    commit_scope: "wrappers"
+    phase: "5-Testing"
+    status: pending
+    depends_on: ["05", "13"]
+    details: |
+      Add integration tests for complete wrapper chain:
+
+      1. TestWrapperChain:
+         - test_factory_creates_wrapped_env()
+         - test_full_pipeline_transforms_action()
+         - test_config_enables_disables_wrappers()
+         - test_action_bounds_respected()
+         - test_smoothing_affects_trajectory()
+
+      2. Use mock base environment to test pipeline without ROS.
+
+      3. Verify:
+         - Correct wrapper ordering
+         - Config options work (enable_smoothing, enable_accel_limits)
+         - Final action within all hard limits
+         - TimeLimit wrapper applied
+
+  - id: "15"
+    summary: "Document action space contract in CLAUDE.md"
+    scope: |
+      - CLAUDE.md (MODIFY)
+    commit_type: "docs"
+    commit_scope: "project"
+    phase: "5-Testing"
+    status: pending
+    depends_on: ["06", "09"]
+    details: |
+      Add Action Space section to CLAUDE.md:
+
+      1. Add new section "## Action Space" under Key Conventions:
+
+         ### Action Space Contract
+
+         **Policy Output:**
+         - Actions normalized to [-1, 1]
+         - Shape: [linear_vel, angular_vel, pick, place]
+
+         **Processing Pipeline (Python wrappers):**
+         1. ActionScalingWrapper: [-1,1] -> physical velocities
+         2. ActionSmoothingWrapper: EMA filter (alpha=0.3)
+         3. AccelerationLimitWrapper: enforce realistic dynamics
+         4. SafetyClippingWrapper: hard bounds
+
+         **Discrete Actions:**
+         - Pick/place use threshold=0.5
+         - pick > 0.5 triggers pick (if not carrying)
+         - place > 0.5 triggers place (if carrying)
+         - Action masking prevents invalid commands
+
+         **RLBridge Safety:**
+         - Actions scaled by v_max/omega_max parameters
+         - SafetyController applied before publishing
+         - Safety state returned in observation
+
+  - id: "16"
+    summary: "Add C++ integration tests for RLBridge safety"
+    scope: |
+      - ros_ws/src/warehouser_rl_bridge/test/test_action_safety.cpp (CREATE)
+      - ros_ws/src/warehouser_rl_bridge/CMakeLists.txt (MODIFY)
+    commit_type: "test"
+    commit_scope: "rl_bridge"
+    phase: "5-Testing"
+    status: pending
+    depends_on: ["08", "11"]
+    details: |
+      Create C++ tests for RLBridge safety integration:
+
+      1. Create test_action_safety.cpp with Google Test:
+         - TestActionScaling:
+           - test_scales_normalized_to_physical()
+           - test_respects_v_max_parameter()
+           - test_respects_omega_max_parameter()
+         - TestSafetyIntegration:
+           - test_safety_controller_applied()
+           - test_emergency_stop_on_obstacle()
+           - test_slowdown_zone_reduces_velocity()
+         - TestDiscreteActions:
+           - test_pick_respects_threshold()
+           - test_place_respects_threshold()
+           - test_pick_blocked_when_carrying()
+           - test_place_blocked_when_not_carrying()
+
+      2. Update CMakeLists.txt:
+         - Add test executable for test_action_safety.cpp
+         - Link with GTest and warehouser_safety
+
+  - id: "17"
+    summary: "Add code comments for action processing"
+    scope: |
+      - ros_ws/src/warehouser_rl_bridge/src/rl_bridge_node.cpp (MODIFY)
+      - training/training/envs/ros_env.py (MODIFY)
+    commit_type: "docs"
+    commit_scope: "code"
+    phase: "5-Testing"
+    status: pending
+    depends_on: ["08", "12"]
+    details: |
+      Add comprehensive code comments explaining action processing:
+
+      1. rl_bridge_node.cpp sendAction():
+         - Document action scaling formula
+         - Document safety controller integration
+         - Document discrete action threshold (0.5)
+         - Document action masking logic
+
+      2. ros_env.py step():
+         - Document action masking logic
+         - Document discrete action encoding
+         - Document info dict contents
+
+      3. Ensure all comments match actual implementation

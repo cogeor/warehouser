@@ -1,0 +1,38 @@
+loops:
+  - id: "01"
+    summary: "Create ESLint configuration for TypeScript frontend"
+    scope: "web_frontend"
+    type: "fix"
+    status: pending
+    description: |
+      The TypeScript CI is failing because ESLint cannot find a configuration file.
+      The package.json includes ESLint dependencies but no .eslintrc.cjs exists.
+      Create a proper ESLint config for React/TypeScript that matches the project's
+      existing patterns (strict TypeScript, React hooks rules, Vite-based setup).
+
+  - id: "02"
+    summary: "Fix Python mypy type errors and ruff lint issues"
+    scope: "training"
+    type: "fix"
+    status: pending
+    description: |
+      Fix 39 mypy type errors across the training codebase:
+      - Missing type parameters for ActionWrapper generics in wrapper classes
+      - comparison-overlap errors in test assertions (ObservationVersion enum)
+      - attr-defined errors accessing .low/.high on Space[Any]
+      - Unused type: ignore comments in pettingzoo_env.py
+
+      Fix ruff lint errors:
+      - Import blocks un-sorted in tests/test_action_wrappers.py, tests/test_scripts.py
+      - Lines too long (>100 chars) in tests/test_config.py:152,210
+
+  - id: "03"
+    summary: "Add TypeScript linting to pre-commit hooks"
+    scope: "root"
+    type: "chore"
+    status: pending
+    depends_on: ["01"]
+    description: |
+      Enhance the existing .pre-commit-config.yaml to include TypeScript/ESLint hooks.
+      This ensures frontend lint issues are caught before push, matching the Python
+      workflow that already uses ruff and mypy pre-commit hooks.

@@ -1,14 +1,12 @@
 import { RosConnectionProvider } from './hooks/useRosConnection'
 import { RosDataBridge } from './components/RosDataBridge'
-import { CurrentLayout } from './layouts'
-import { DesignSwitcher } from './components/ui/DesignSwitcher'
+import { LayoutSplit } from './layouts/LayoutSplit'
 
 function App() {
   return (
     <RosConnectionProvider>
       <RosDataBridge />
-      <CurrentLayout />
-      <DesignSwitcher />
+      <LayoutSplit />
     </RosConnectionProvider>
   )
 }
