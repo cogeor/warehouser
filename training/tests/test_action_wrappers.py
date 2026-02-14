@@ -19,7 +19,6 @@ from training.wrappers import (
     SafetyClippingWrapper,
 )
 
-
 # =============================================================================
 # Mock Environment
 # =============================================================================
@@ -70,9 +69,7 @@ class TestActionScalingWrapper:
     def test_scales_linear_velocity(self) -> None:
         """Test linear velocity is scaled by linear_limit."""
         env = MockEnv()
-        wrapped = ActionScalingWrapper(
-            env, velocity_limits={"linear": 2.0, "angular": 1.0}
-        )
+        wrapped = ActionScalingWrapper(env, velocity_limits={"linear": 2.0, "angular": 1.0})
         wrapped.reset()
 
         action = np.array([0.5, 0.0, 0.0, 0.0], dtype=np.float32)
@@ -84,9 +81,7 @@ class TestActionScalingWrapper:
     def test_scales_angular_velocity(self) -> None:
         """Test angular velocity is scaled by angular_limit."""
         env = MockEnv()
-        wrapped = ActionScalingWrapper(
-            env, velocity_limits={"linear": 1.0, "angular": 3.0}
-        )
+        wrapped = ActionScalingWrapper(env, velocity_limits={"linear": 1.0, "angular": 3.0})
         wrapped.reset()
 
         action = np.array([0.0, -0.5, 0.0, 0.0], dtype=np.float32)
@@ -98,9 +93,7 @@ class TestActionScalingWrapper:
     def test_preserves_pick_place_signals(self) -> None:
         """Test pick/place signals are not scaled (remain in [-1, 1])."""
         env = MockEnv()
-        wrapped = ActionScalingWrapper(
-            env, velocity_limits={"linear": 2.0, "angular": 2.0}
-        )
+        wrapped = ActionScalingWrapper(env, velocity_limits={"linear": 2.0, "angular": 2.0})
         wrapped.reset()
 
         action = np.array([1.0, 1.0, 0.8, -0.6], dtype=np.float32)
@@ -113,10 +106,9 @@ class TestActionScalingWrapper:
     def test_updates_action_space(self) -> None:
         """Test action space is updated to reflect scaled limits."""
         env = MockEnv()
-        wrapped = ActionScalingWrapper(
-            env, velocity_limits={"linear": 1.5, "angular": 2.5}
-        )
+        wrapped = ActionScalingWrapper(env, velocity_limits={"linear": 1.5, "angular": 2.5})
 
+        assert isinstance(wrapped.action_space, gym.spaces.Box)
         # Linear velocity bounds
         assert wrapped.action_space.low[0] == pytest.approx(-1.5)
         assert wrapped.action_space.high[0] == pytest.approx(1.5)
@@ -154,9 +146,7 @@ class TestActionScalingWrapper:
     def test_full_range_scaling(self) -> None:
         """Test scaling at extreme values [-1, 1]."""
         env = MockEnv()
-        wrapped = ActionScalingWrapper(
-            env, velocity_limits={"linear": 1.0, "angular": 2.0}
-        )
+        wrapped = ActionScalingWrapper(env, velocity_limits={"linear": 1.0, "angular": 2.0})
         wrapped.reset()
 
         # Test max positive
@@ -310,9 +300,7 @@ class TestAccelerationLimitWrapper:
     def test_first_action_from_zero(self) -> None:
         """Test first action after reset starts from zero velocity."""
         env = MockEnv()
-        wrapped = AccelerationLimitWrapper(
-            env, max_delta={"linear": 2.0, "angular": 4.0}, dt=0.05
-        )
+        wrapped = AccelerationLimitWrapper(env, max_delta={"linear": 2.0, "angular": 4.0}, dt=0.05)
         wrapped.reset()
 
         # Request full velocity instantly
@@ -350,9 +338,7 @@ class TestAccelerationLimitWrapper:
         """Test negative acceleration (deceleration) is clamped."""
         env = MockEnv()
         dt = 0.1
-        wrapped = AccelerationLimitWrapper(
-            env, max_delta={"linear": 1.0, "angular": 2.0}, dt=dt
-        )
+        wrapped = AccelerationLimitWrapper(env, max_delta={"linear": 1.0, "angular": 2.0}, dt=dt)
         wrapped.reset()
 
         # Build up velocity over several steps
@@ -393,9 +379,7 @@ class TestAccelerationLimitWrapper:
     def test_pick_place_not_limited(self) -> None:
         """Test pick/place signals are not affected by acceleration limits."""
         env = MockEnv()
-        wrapped = AccelerationLimitWrapper(
-            env, max_delta={"linear": 0.1, "angular": 0.1}, dt=0.05
-        )
+        wrapped = AccelerationLimitWrapper(env, max_delta={"linear": 0.1, "angular": 0.1}, dt=0.05)
         wrapped.reset()
 
         action = np.array([0.0, 0.0, 1.0, -1.0], dtype=np.float32)
@@ -408,9 +392,7 @@ class TestAccelerationLimitWrapper:
     def test_reset_clears_velocity_state(self) -> None:
         """Test reset clears previous velocity state."""
         env = MockEnv()
-        wrapped = AccelerationLimitWrapper(
-            env, max_delta={"linear": 1.0, "angular": 1.0}, dt=0.1
-        )
+        wrapped = AccelerationLimitWrapper(env, max_delta={"linear": 1.0, "angular": 1.0}, dt=0.1)
         wrapped.reset()
 
         # Build up velocity
@@ -443,17 +425,13 @@ class TestAccelerationLimitWrapper:
         """Test ValueError when dt is zero."""
         env = MockEnv()
         with pytest.raises(ValueError, match="dt.*> 0"):
-            AccelerationLimitWrapper(
-                env, max_delta={"linear": 1.0, "angular": 1.0}, dt=0.0
-            )
+            AccelerationLimitWrapper(env, max_delta={"linear": 1.0, "angular": 1.0}, dt=0.0)
 
     def test_rejects_negative_acceleration(self) -> None:
         """Test ValueError when max acceleration is negative."""
         env = MockEnv()
         with pytest.raises(ValueError, match="linear.*> 0"):
-            AccelerationLimitWrapper(
-                env, max_delta={"linear": -1.0, "angular": 1.0}
-            )
+            AccelerationLimitWrapper(env, max_delta={"linear": -1.0, "angular": 1.0})
 
 
 # =============================================================================
@@ -578,6 +556,7 @@ class TestSafetyClippingWrapper:
             },
         )
 
+        assert isinstance(wrapped.action_space, gym.spaces.Box)
         assert wrapped.action_space.low[0] == pytest.approx(-1.5)
         assert wrapped.action_space.high[0] == pytest.approx(1.5)
         assert wrapped.action_space.low[1] == pytest.approx(-3.0)
@@ -684,9 +663,7 @@ class TestWrapperChain:
             wrapped = ActionSmoothingWrapper(wrapped, alpha=smoothing_alpha)
 
         if accel_limits is not None:
-            wrapped = AccelerationLimitWrapper(
-                wrapped, max_delta=accel_limits, dt=accel_dt
-            )
+            wrapped = AccelerationLimitWrapper(wrapped, max_delta=accel_limits, dt=accel_dt)
 
         if hard_limits is not None:
             wrapped = SafetyClippingWrapper(wrapped, hard_limits=hard_limits)
@@ -888,20 +865,25 @@ class TestWrapperChain:
         env = MockEnv()
 
         # Simulate config from YAML/JSON
-        config = {
-            "velocity_limits": {"linear": 1.0, "angular": 2.0},
-            "smoothing_alpha": 0.3,
-            "accel_limits": {"linear": 2.0, "angular": 4.0},
-            "accel_dt": 0.05,
-            "hard_limits": {
-                "linear": (-1.0, 1.0),
-                "angular": (-2.0, 2.0),
-                "pick": (-1.0, 1.0),
-                "place": (-1.0, 1.0),
-            },
+        velocity_limits = {"linear": 1.0, "angular": 2.0}
+        smoothing_alpha = 0.3
+        accel_limits = {"linear": 2.0, "angular": 4.0}
+        accel_dt = 0.05
+        hard_limits = {
+            "linear": (-1.0, 1.0),
+            "angular": (-2.0, 2.0),
+            "pick": (-1.0, 1.0),
+            "place": (-1.0, 1.0),
         }
 
-        wrapped = self.create_wrapper_chain(env, **config)
+        wrapped = self.create_wrapper_chain(
+            env,
+            velocity_limits=velocity_limits,
+            smoothing_alpha=smoothing_alpha,
+            accel_limits=accel_limits,
+            accel_dt=accel_dt,
+            hard_limits=hard_limits,
+        )
         wrapped.reset()
 
         # Verify chain works with config

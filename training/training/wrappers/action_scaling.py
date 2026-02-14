@@ -4,14 +4,14 @@ Scales normalized actions from [-1, 1] to physical velocity limits while
 keeping discrete actions (pick/place) in their original range.
 """
 
-from typing import Any
-
 import gymnasium as gym
 import numpy as np
 from numpy.typing import NDArray
 
 
-class ActionScalingWrapper(gym.ActionWrapper):
+class ActionScalingWrapper(
+    gym.ActionWrapper[NDArray[np.float32], NDArray[np.float32], NDArray[np.float32]]
+):
     """Scale normalized actions to physical velocity limits.
 
     The robot's neural network outputs actions in [-1, 1]. This wrapper scales

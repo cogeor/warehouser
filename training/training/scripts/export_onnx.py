@@ -155,8 +155,7 @@ def export_to_onnx(
         ) from e
     except Exception as e:
         raise ExportError(
-            f"ONNX validation failed unexpectedly: {e}\n"
-            "This may indicate an ONNX library issue."
+            f"ONNX validation failed unexpectedly: {e}\nThis may indicate an ONNX library issue."
         ) from e
 
     logger.info(f"ONNX model successfully exported and validated: {output_path}")
@@ -213,10 +212,7 @@ def export_from_checkpoint(
             output_dir.mkdir(parents=True, exist_ok=True)
             logger.info(f"Created output directory: {output_dir}")
         except OSError as e:
-            raise ExportError(
-                f"Cannot create output directory: {output_dir}\n"
-                f"Error: {e}"
-            ) from e
+            raise ExportError(f"Cannot create output directory: {output_dir}\nError: {e}") from e
 
     # Export
     export_to_onnx(model, output_path, obs_dim)

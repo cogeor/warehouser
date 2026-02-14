@@ -11,7 +11,9 @@ import numpy as np
 from numpy.typing import NDArray
 
 
-class AccelerationLimitWrapper(gym.ActionWrapper):
+class AccelerationLimitWrapper(
+    gym.ActionWrapper[NDArray[np.float32], NDArray[np.float32], NDArray[np.float32]]
+):
     """Enforce acceleration limits on velocity commands.
 
     Limits the rate of change of velocity commands to ensure the robot
@@ -73,7 +75,9 @@ class AccelerationLimitWrapper(gym.ActionWrapper):
         if self.max_linear_delta <= 0:
             raise ValueError(f"linear acceleration limit must be > 0, got {self.max_linear_delta}")
         if self.max_angular_delta <= 0:
-            raise ValueError(f"angular acceleration limit must be > 0, got {self.max_angular_delta}")
+            raise ValueError(
+                f"angular acceleration limit must be > 0, got {self.max_angular_delta}"
+            )
 
         if dt <= 0:
             raise ValueError(f"dt must be > 0, got {dt}")

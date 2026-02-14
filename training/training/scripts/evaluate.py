@@ -50,7 +50,8 @@ class EvaluationResult:
             f"Evaluation Results ({self.num_episodes} episodes):\n"
             f"  Mean Reward: {self.mean_reward:.2f} +/- {self.std_reward:.2f}\n"
             f"  Success Rate: {self.success_rate * 100:.1f}%\n"
-            f"  Mean Episode Length: {self.mean_episode_length:.1f} +/- {self.std_episode_length:.1f}"
+            f"  Mean Episode Length: {self.mean_episode_length:.1f} "
+            f"+/- {self.std_episode_length:.1f}"
         )
 
 
@@ -149,8 +150,7 @@ def load_model_and_env(
             ) from e
     else:
         logger.warning(
-            f"VecNormalize stats not found at {vecnormalize_path}, "
-            "using un-normalized environment"
+            f"VecNormalize stats not found at {vecnormalize_path}, using un-normalized environment"
         )
         # Wrap in VecNormalize but disable normalization
         env = VecNormalize(base_env, norm_obs=False, norm_reward=False)

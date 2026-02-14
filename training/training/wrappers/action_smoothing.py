@@ -11,7 +11,9 @@ import numpy as np
 from numpy.typing import NDArray
 
 
-class ActionSmoothingWrapper(gym.ActionWrapper):
+class ActionSmoothingWrapper(
+    gym.ActionWrapper[NDArray[np.float32], NDArray[np.float32], NDArray[np.float32]]
+):
     """Apply exponential moving average smoothing to velocity actions.
 
     Smooths velocity commands (linear and angular) using an EMA filter to

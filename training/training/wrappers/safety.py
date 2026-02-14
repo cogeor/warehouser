@@ -5,14 +5,14 @@ ensuring no commands exceed safe operating ranges regardless of upstream
 wrapper outputs.
 """
 
-from typing import Any
-
 import gymnasium as gym
 import numpy as np
 from numpy.typing import NDArray
 
 
-class SafetyClippingWrapper(gym.ActionWrapper):
+class SafetyClippingWrapper(
+    gym.ActionWrapper[NDArray[np.float32], NDArray[np.float32], NDArray[np.float32]]
+):
     """Enforce hard safety limits on all action dimensions.
 
     This wrapper serves as the final safety layer in the action pipeline,
@@ -64,10 +64,10 @@ class SafetyClippingWrapper(gym.ActionWrapper):
                 raise ValueError(f"hard_limits must contain '{key}' key")
 
         # Validate all limits
-        for key, (low, high) in hard_limits.items():
-            if low >= high:
+        for key, (low_val, high_val) in hard_limits.items():
+            if low_val >= high_val:
                 raise ValueError(
-                    f"hard_limits['{key}'] invalid: low ({low}) must be < high ({high})"
+                    f"hard_limits['{key}'] invalid: low ({low_val}) must be < high ({high_val})"
                 )
 
         self.hard_limits = hard_limits
@@ -113,25 +113,33 @@ class SafetyClippingWrapper(gym.ActionWrapper):
         clipped_action = action.copy()
 
         # Clip each action dimension to its hard limits
-        clipped_action[0] = np.clip(
-            action[0],
-            self.hard_limits["linear"][0],
-            self.hard_limits["linear"][1],
+        clipped_action[0] = np.float32(
+            np.clip(
+                action[0],
+                self.hard_limits["linear"][0],
+                self.hard_limits["linear"][1],
+            )
         )
-        clipped_action[1] = np.clip(
-            action[1],
-            self.hard_limits["angular"][0],
-            self.hard_limits["angular"][1],
+        clipped_action[1] = np.float32(
+            np.clip(
+                action[1],
+                self.hard_limits["angular"][0],
+                self.hard_limits["angular"][1],
+            )
         )
-        clipped_action[2] = np.clip(
-            action[2],
-            self.hard_limits["pick"][0],
-            self.hard_limits["pick"][1],
+        clipped_action[2] = np.float32(
+            np.clip(
+                action[2],
+                self.hard_limits["pick"][0],
+                self.hard_limits["pick"][1],
+            )
         )
-        clipped_action[3] = np.clip(
-            action[3],
-            self.hard_limits["place"][0],
-            self.hard_limits["place"][1],
+        clipped_action[3] = np.float32(
+            np.clip(
+                action[3],
+                self.hard_limits["place"][0],
+                self.hard_limits["place"][1],
+            )
         )
 
         return clipped_action

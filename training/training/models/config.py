@@ -253,8 +253,7 @@ class ActionConfig(BaseModel):
         """Validate dt is positive."""
         if v <= 0:
             raise ValueError(
-                f"dt must be > 0, got {v}. "
-                "Timestep must be a positive value in seconds."
+                f"dt must be > 0, got {v}. Timestep must be a positive value in seconds."
             )
         return v
 
@@ -310,8 +309,7 @@ class EnvConfig(BaseModel):
         """Validate max_steps is positive."""
         if v <= 0:
             raise ValueError(
-                f"max_steps must be > 0, got {v}. "
-                "Episodes need at least one step to run."
+                f"max_steps must be > 0, got {v}. Episodes need at least one step to run."
             )
         return v
 
@@ -393,15 +391,22 @@ class TrainingConfig(BaseModel):
             )
         return v
 
-    @field_validator("n_steps", "batch_size", "n_epochs", "total_timesteps", "eval_freq", "n_eval_episodes", "save_freq")
+    @field_validator(
+        "n_steps",
+        "batch_size",
+        "n_epochs",
+        "total_timesteps",
+        "eval_freq",
+        "n_eval_episodes",
+        "save_freq",
+    )
     @classmethod
     def training_counts_must_be_positive(cls, v: int, info: object) -> int:
         """Validate training count parameters are positive."""
         field_name = getattr(info, "field_name", "count")
         if v <= 0:
             raise ValueError(
-                f"{field_name} must be > 0, got {v}. "
-                "Training parameters must be positive integers."
+                f"{field_name} must be > 0, got {v}. Training parameters must be positive integers."
             )
         return v
 

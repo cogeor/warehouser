@@ -20,7 +20,9 @@ from training.wrappers import (
 )
 
 
-def create_warehouser_env(config: dict[str, Any]) -> gym.Env[NDArray[np.float32], NDArray[np.float32]]:
+def create_warehouser_env(
+    config: dict[str, Any],
+) -> gym.Env[NDArray[np.float32], NDArray[np.float32]]:
     """Create a fully-configured warehouser training environment.
 
     Constructs the environment with the complete action wrapper pipeline:

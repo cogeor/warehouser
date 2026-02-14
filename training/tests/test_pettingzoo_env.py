@@ -1,5 +1,6 @@
 """Tests for PettingZoo multi-agent environment."""
 
+import gymnasium as gym
 import numpy as np
 import pytest
 
@@ -14,7 +15,7 @@ class TestWarehouseParallelEnv:
         """Test default configuration values."""
         env = WarehouseParallelEnv()
         assert env.config.num_agents == 2
-        assert env.config.obs_dim == 17
+        assert int(env.config.obs_dim) == 14  # V3_MultiRobot
         assert env.config.action_dim == 4
         assert env.config.max_steps == 500
         assert env.config.shared_reward is False
@@ -51,13 +52,13 @@ class TestWarehouseParallelEnv:
 
     def test_observation_spaces(self) -> None:
         """Test observation space per agent."""
-        config = MultiAgentConfig(num_agents=2, obs_dim=17)
+        config = MultiAgentConfig(num_agents=2, obs_dim=14)
         env = WarehouseParallelEnv(config)
 
         assert len(env.observation_spaces) == 2
         for agent in env.possible_agents:
             assert agent in env.observation_spaces
-            assert env.observation_space(agent).shape == (17,)
+            assert env.observation_space(agent).shape == (14,)
             assert env.observation_space(agent).dtype == np.float32
 
     def test_action_spaces(self) -> None:
@@ -76,6 +77,7 @@ class TestWarehouseParallelEnv:
         env = WarehouseParallelEnv()
         for agent in env.possible_agents:
             space = env.action_space(agent)
+            assert isinstance(space, gym.spaces.Box)
             assert np.all(space.low == -1.0)
             assert np.all(space.high == 1.0)
 
@@ -135,7 +137,7 @@ class TestMultiAgentConfig:
         """Test default configuration values."""
         config = MultiAgentConfig()
         assert config.num_agents == 2
-        assert config.obs_dim == 17
+        assert int(config.obs_dim) == 14  # V3_MultiRobot
         assert config.action_dim == 4
         assert config.max_steps == 500
         assert config.shared_reward is False
@@ -190,9 +192,7 @@ class TestWarehouseParallelEnvIntegration:
         try:
             env.reset()
 
-            actions = {
-                agent: env.action_space(agent).sample() for agent in env.agents
-            }
+            actions = {agent: env.action_space(agent).sample() for agent in env.agents}
             obs, rewards, terms, truncs, infos = env.step(actions)
 
             assert isinstance(obs, dict)

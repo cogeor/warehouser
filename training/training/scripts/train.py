@@ -81,8 +81,13 @@ def train(
         FileNotFoundError: If resume checkpoint does not exist.
     """
     logger.info("Starting training setup...")
-    logger.info(f"Environment config: obs_dim={env_config.obs_dim}, max_steps={env_config.max_steps}")
-    logger.info(f"Training config: lr={train_config.learning_rate}, timesteps={train_config.total_timesteps}")
+    logger.info(
+        f"Environment config: obs_dim={env_config.obs_dim}, max_steps={env_config.max_steps}"
+    )
+    logger.info(
+        f"Training config: lr={train_config.learning_rate}, "
+        f"timesteps={train_config.total_timesteps}"
+    )
 
     # Validate resume checkpoint exists before proceeding
     if resume_from is not None:
@@ -130,7 +135,10 @@ def train(
         # Check for VecNormalize stats file (same name with _vecnormalize.pkl suffix)
         resume_path = Path(resume_from)
         # Handle both .zip and non-.zip paths
-        base_path = str(resume_path.with_suffix("")) if resume_path.suffix == ".zip" else str(resume_path)
+        if resume_path.suffix == ".zip":
+            base_path = str(resume_path.with_suffix(""))
+        else:
+            base_path = str(resume_path)
         vecnorm_path = base_path + "_vecnormalize.pkl"
         if Path(vecnorm_path).exists():
             logger.info(f"Loading VecNormalize stats from {vecnorm_path}")
@@ -175,8 +183,7 @@ def train(
             )
     except Exception as e:
         raise TrainingError(
-            f"Failed to create/load PPO model: {e}\n"
-            "Check hyperparameters and checkpoint validity."
+            f"Failed to create/load PPO model: {e}\nCheck hyperparameters and checkpoint validity."
         ) from e
 
     # Callbacks
@@ -227,8 +234,7 @@ def train(
         logger.warning("Training interrupted by user. Saving current model...")
     except Exception as e:
         raise TrainingError(
-            f"Training failed: {e}\n"
-            "Check environment stability and hyperparameters."
+            f"Training failed: {e}\nCheck environment stability and hyperparameters."
         ) from e
 
     # Save final model
@@ -304,15 +310,14 @@ def load_config(config_path: str) -> tuple[EnvConfig, TrainingConfig]:
         ) from e
     except OSError as e:
         raise ConfigurationError(
-            f"Could not read configuration file: {config_path}\n"
-            f"Error: {e}"
+            f"Could not read configuration file: {config_path}\nError: {e}"
         ) from e
 
     # Validate it's a dict
     if not isinstance(config_data, dict):
         raise ConfigurationError(
             f"Configuration file must contain a JSON object, got {type(config_data).__name__}\n"
-            "Expected format: {\"env\": {...}, \"training\": {...}}"
+            'Expected format: {"env": {...}, "training": {...}}'
         )
 
     # Parse and validate configs using Pydantic

@@ -38,16 +38,18 @@ class ROSGymEnv(gym.Env[Observation, Action]):
 
         # Define action and observation spaces
         # Action: [linear_vel, angular_vel, pick, place]
+        # Convert to int in case enum is used
         self.action_space = gym.spaces.Box(
-            low=-1.0, high=1.0, shape=(self.config.action_dim,), dtype=np.float32
+            low=-1.0, high=1.0, shape=(int(self.config.action_dim),), dtype=np.float32
         )
 
         # Observation space dimension depends on config.obs_dim:
-        # - V1_Basic (8): [x, y, theta, goal_dx, goal_dy, goal_dist, goal_heading, is_carrying]
-        # - V2_Lidar (63): V1 + 55 lidar rays
-        # - V3_MultiRobot (17): Per-robot observations for multi-agent
+        # - V1_Basic (5): [goal_dx, goal_dy, goal_dist, goal_heading, is_carrying]
+        # - V2_Lidar (63): V1 + 58 lidar rays
+        # - V3_MultiRobot (14): Per-robot observations for multi-agent
+        # Convert to int in case enum is used
         self.observation_space = gym.spaces.Box(
-            low=-np.inf, high=np.inf, shape=(self.config.obs_dim,), dtype=np.float32
+            low=-np.inf, high=np.inf, shape=(int(self.config.obs_dim),), dtype=np.float32
         )
 
         # ROS2 client initialization (lazy)

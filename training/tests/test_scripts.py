@@ -10,7 +10,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
 # Pre-mock heavy dependencies before importing training modules
 torch_mock = MagicMock()
 torch_mock.onnx = MagicMock()
@@ -323,8 +322,8 @@ class TestE2ETraining:
 
     def test_train_function_creates_directories(self, tmp_path: Path) -> None:
         """Test that train() creates checkpoint and log directories."""
-        from training.scripts.train import train
         from training.models.config import EnvConfig, TrainingConfig
+        from training.scripts.train import train
 
         env_config = EnvConfig()
         checkpoint_dir = tmp_path / "checkpoints"
@@ -353,8 +352,8 @@ class TestE2ETraining:
 
     def test_train_function_saves_model(self, tmp_path: Path) -> None:
         """Test that train() saves the final model."""
-        from training.scripts.train import train
         from training.models.config import EnvConfig, TrainingConfig
+        from training.scripts.train import train
 
         env_config = EnvConfig()
         checkpoint_dir = tmp_path / "checkpoints"
@@ -385,8 +384,8 @@ class TestE2ETraining:
 
     def test_train_resumes_from_checkpoint(self, tmp_path: Path) -> None:
         """Test that train() can resume from a checkpoint."""
-        from training.scripts.train import train
         from training.models.config import EnvConfig, TrainingConfig
+        from training.scripts.train import train
 
         env_config = EnvConfig()
         checkpoint_dir = tmp_path / "checkpoints"
@@ -416,8 +415,8 @@ class TestE2ETraining:
 
     def test_train_raises_on_missing_checkpoint(self, tmp_path: Path) -> None:
         """Test that train() raises FileNotFoundError for missing checkpoint."""
-        from training.scripts.train import train
         from training.models.config import EnvConfig, TrainingConfig
+        from training.scripts.train import train
 
         env_config = EnvConfig()
         train_config = TrainingConfig(

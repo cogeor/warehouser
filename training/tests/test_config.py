@@ -149,7 +149,8 @@ class TestRewardConfig:
 class TestEnvConfig:
     def test_defaults(self) -> None:
         config = EnvConfig()
-        assert config.obs_dim == 5  # V1 ego-centric: [goal_dx, goal_dy, goal_dist, goal_heading, is_carrying]
+        # V1 ego-centric: [goal_dx, goal_dy, goal_dist, goal_heading, is_carrying]
+        assert config.obs_dim == 5
         assert config.action_dim == 4
         assert config.max_steps == 500
         assert config.world_width == 10.0
@@ -207,7 +208,8 @@ class TestEnvConfig:
     def test_obs_dim_v1_basic(self) -> None:
         """Test V1_Basic observation dimension (default)."""
         config = EnvConfig()
-        assert config.obs_dim == 5  # Ego-centric: [goal_dx, goal_dy, goal_dist, goal_heading, is_carrying]
+        # Ego-centric: [goal_dx, goal_dy, goal_dist, goal_heading, is_carrying]
+        assert config.obs_dim == 5
         assert config.obs_dim == ObservationVersion.V1_Basic
 
     def test_obs_dim_v2_lidar(self) -> None:
@@ -241,9 +243,9 @@ class TestObservationVersion:
 
     def test_version_values(self) -> None:
         """Test ObservationVersion enum values."""
-        assert ObservationVersion.V1_Basic == 5  # Ego-centric
-        assert ObservationVersion.V2_Lidar == 63
-        assert ObservationVersion.V3_MultiRobot == 14  # 5 + 3*3
+        assert int(ObservationVersion.V1_Basic) == 5  # Ego-centric
+        assert int(ObservationVersion.V2_Lidar) == 63
+        assert int(ObservationVersion.V3_MultiRobot) == 14  # 5 + 3*3
 
     def test_version_is_int_compatible(self) -> None:
         """Test ObservationVersion can be used as int."""
@@ -253,8 +255,8 @@ class TestObservationVersion:
 
     def test_version_comparison(self) -> None:
         """Test ObservationVersion can be compared with integers."""
-        assert ObservationVersion.V2_Lidar == 63
-        assert 63 == ObservationVersion.V2_Lidar
+        assert int(ObservationVersion.V2_Lidar) == 63
+        assert 63 == int(ObservationVersion.V2_Lidar)
         assert ObservationVersion.V2_Lidar > ObservationVersion.V1_Basic
 
 

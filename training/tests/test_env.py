@@ -72,5 +72,5 @@ class TestROSGymEnv:
 
     def test_default_config(self) -> None:
         env = ROSGymEnv()  # No config provided
-        assert env.config.obs_dim == 8
+        assert int(env.config.obs_dim) == 5  # V1_Basic
         assert env.config.action_dim == 4

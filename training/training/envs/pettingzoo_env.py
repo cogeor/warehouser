@@ -22,7 +22,7 @@ Observation = NDArray[np.float32]
 Action = NDArray[np.float32]
 
 
-class WarehouseParallelEnv(ParallelEnv[AgentID, Observation, Action]):
+class WarehouseParallelEnv(ParallelEnv[AgentID, Observation, Action]):  # type: ignore[misc]
     """Multi-agent warehouse environment using PettingZoo ParallelEnv.
 
     All agents act simultaneously. Uses ROS2 services for simulation.
@@ -46,17 +46,15 @@ class WarehouseParallelEnv(ParallelEnv[AgentID, Observation, Action]):
         self.config = config or MultiAgentConfig()
 
         # Agent IDs
-        self.possible_agents: list[AgentID] = [
-            f"robot_{i}" for i in range(self.config.num_agents)
-        ]
+        self.possible_agents: list[AgentID] = [f"robot_{i}" for i in range(self.config.num_agents)]
         self.agents: list[AgentID] = self.possible_agents.copy()
 
-        # Spaces per agent
+        # Spaces per agent (convert obs_dim/action_dim to int in case they are enums)
         self._observation_spaces: dict[AgentID, spaces.Box] = {
             agent: spaces.Box(
                 low=-np.inf,
                 high=np.inf,
-                shape=(self.config.obs_dim,),
+                shape=(int(self.config.obs_dim),),
                 dtype=np.float32,
             )
             for agent in self.possible_agents
@@ -65,7 +63,7 @@ class WarehouseParallelEnv(ParallelEnv[AgentID, Observation, Action]):
             agent: spaces.Box(
                 low=-1.0,
                 high=1.0,
-                shape=(self.config.action_dim,),
+                shape=(int(self.config.action_dim),),
                 dtype=np.float32,
             )
             for agent in self.possible_agents
@@ -104,11 +102,11 @@ class WarehouseParallelEnv(ParallelEnv[AgentID, Observation, Action]):
             return Result.ok(None)
 
         try:
-            import rclpy  # type: ignore[import-not-found]
-            from rclpy.node import Node  # type: ignore[import-not-found]
+            import rclpy
+            from rclpy.node import Node
 
             # Import ROS message types
-            from warehouser_msgs.srv import (  # type: ignore[import-not-found]
+            from warehouser_msgs.srv import (
                 RLReset,
                 RLStep,
             )
@@ -160,8 +158,8 @@ class WarehouseParallelEnv(ParallelEnv[AgentID, Observation, Action]):
 
         # Call reset service with robot count
         try:
-            import rclpy  # type: ignore[import-not-found]
-            from warehouser_msgs.srv import RLReset  # type: ignore[import-not-found]
+            import rclpy
+            from warehouser_msgs.srv import RLReset
 
             request = RLReset.Request()
             request.seed = seed if seed is not None else 0
@@ -186,9 +184,7 @@ class WarehouseParallelEnv(ParallelEnv[AgentID, Observation, Action]):
                         obs = np.zeros(self.config.obs_dim, dtype=np.float32)
                     observations[agent] = obs
                 else:
-                    observations[agent] = np.zeros(
-                        self.config.obs_dim, dtype=np.float32
-                    )
+                    observations[agent] = np.zeros(self.config.obs_dim, dtype=np.float32)
                 infos[agent] = {"info": response.info}
 
             return observations, infos
@@ -233,17 +229,15 @@ class WarehouseParallelEnv(ParallelEnv[AgentID, Observation, Action]):
             return observations, rewards, terminations, truncations, infos
 
         try:
-            import rclpy  # type: ignore[import-not-found]
-            from warehouser_msgs.srv import RLStep  # type: ignore[import-not-found]
+            import rclpy
+            from warehouser_msgs.srv import RLStep
 
             # Step each agent
             total_reward = 0.0
             any_terminated = False
 
             for i, agent in enumerate(self.agents):
-                action = actions.get(
-                    agent, np.zeros(self.config.action_dim, dtype=np.float32)
-                )
+                action = actions.get(agent, np.zeros(self.config.action_dim, dtype=np.float32))
                 action = np.asarray(action, dtype=np.float32).flatten()
 
                 request = RLStep.Request()
@@ -258,9 +252,7 @@ class WarehouseParallelEnv(ParallelEnv[AgentID, Observation, Action]):
                 rclpy.spin_until_future_complete(self._node, future, timeout_sec=5.0)
 
                 if future.result() is None:
-                    observations[agent] = np.zeros(
-                        self.config.obs_dim, dtype=np.float32
-                    )
+                    observations[agent] = np.zeros(self.config.obs_dim, dtype=np.float32)
                     rewards[agent] = 0.0
                     terminations[agent] = True
                     truncations[agent] = False
@@ -320,10 +312,7 @@ class WarehouseParallelEnv(ParallelEnv[AgentID, Observation, Action]):
 
     def _empty_observations(self) -> dict[AgentID, Observation]:
         """Return zero observations for all agents."""
-        return {
-            agent: np.zeros(self.config.obs_dim, dtype=np.float32)
-            for agent in self.agents
-        }
+        return {agent: np.zeros(self.config.obs_dim, dtype=np.float32) for agent in self.agents}
 
     def _error_infos(self, error: str) -> dict[AgentID, dict[str, Any]]:
         """Return error infos for all agents."""
