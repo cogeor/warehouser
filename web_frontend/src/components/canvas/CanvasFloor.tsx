@@ -71,7 +71,7 @@ export function CanvasFloor({
         <Line
           key={`grid-v-${i}`}
           points={[i * scale, 0, i * scale, canvasSize]}
-          stroke="#333"
+          stroke="#E5E7EB"
           strokeWidth={1}
         />
       ))}
@@ -80,7 +80,7 @@ export function CanvasFloor({
         <Line
           key={`grid-h-${i}`}
           points={[0, i * scale, canvasSize, i * scale]}
-          stroke="#333"
+          stroke="#E5E7EB"
           strokeWidth={1}
         />
       ))}

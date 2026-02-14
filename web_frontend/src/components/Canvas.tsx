@@ -55,7 +55,7 @@ function CanvasInner() {
     <Stage
       width={CANVAS_CONFIG.CANVAS_SIZE}
       height={CANVAS_CONFIG.CANVAS_SIZE}
-      className="border border-gray-600 bg-gray-900"
+      className="bg-white"
     >
       <Layer>
         {/* Floor tiles */}

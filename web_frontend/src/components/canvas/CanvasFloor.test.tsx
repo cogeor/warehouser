@@ -63,9 +63,9 @@ describe('CanvasFloor', () => {
     render(<CanvasFloor canvasSize={600} worldSize={10} tileSize={60} />)
 
     const lines = screen.getAllByTestId('line')
-    // Check that lines have the correct stroke color
+    // Check that lines have the correct stroke color (light gray for white theme)
     lines.forEach((line) => {
-      expect(line.getAttribute('data-stroke')).toBe('#333')
+      expect(line.getAttribute('data-stroke')).toBe('#E5E7EB')
     })
   })
 
