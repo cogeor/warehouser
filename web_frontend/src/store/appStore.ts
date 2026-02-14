@@ -26,11 +26,14 @@ export interface AppState {
   entities: Entity[]
   setEntities: (entities: Entity[]) => void
 
-  // Lidar
+  // Lidar (includes robot pose at time of scan - per ROS2 TF2 best practices)
   lidarRanges: number[]
   lidarAngleMin: number
   lidarAngleMax: number
-  setLidar: (ranges: number[], angleMin: number, angleMax: number) => void
+  lidarRobotX: number
+  lidarRobotY: number
+  lidarRobotTheta: number
+  setLidar: (ranges: number[], angleMin: number, angleMax: number, robotX: number, robotY: number, robotTheta: number) => void
 
   // Task
   taskState: string
@@ -69,12 +72,15 @@ export const useAppStore = create<AppState>((set) => ({
   entities: [],
   setEntities: (entities) => set({ entities }),
 
-  // Lidar
+  // Lidar (includes robot pose at time of scan - per ROS2 TF2 best practices)
   lidarRanges: [],
   lidarAngleMin: -1.57,
   lidarAngleMax: 1.57,
-  setLidar: (ranges, angleMin, angleMax) =>
-    set({ lidarRanges: ranges, lidarAngleMin: angleMin, lidarAngleMax: angleMax }),
+  lidarRobotX: 5,
+  lidarRobotY: 5,
+  lidarRobotTheta: 0,
+  setLidar: (ranges, angleMin, angleMax, robotX, robotY, robotTheta) =>
+    set({ lidarRanges: ranges, lidarAngleMin: angleMin, lidarAngleMax: angleMax, lidarRobotX: robotX, lidarRobotY: robotY, lidarRobotTheta: robotTheta }),
 
   // Task
   taskState: 'IDLE',

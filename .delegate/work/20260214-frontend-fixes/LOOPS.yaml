@@ -1,0 +1,9 @@
+loops:
+  - id: 01
+    summary: Fix robot/lidar coupling and duplicate rendering
+    tasks:
+      - Add lidar robot pose fields to appStore
+      - Update RosDataBridge to extract robot pose from LidarDebug
+      - Update Canvas to use lidar robot pose for both CanvasLidar AND CanvasRobots
+      - Remove animation from CanvasRobot to fix flickering
+      - Add test for robot/lidar coupling

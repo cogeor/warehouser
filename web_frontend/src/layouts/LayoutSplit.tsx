@@ -10,8 +10,12 @@ import { StatusDisplay } from '../components/ui/StatusDisplay'
 import { ConnectionDot } from '../components/ui/ConnectionDot'
 import { useTriggerService } from '../hooks/useRosService'
 import { useAppStore } from '../store/appStore'
+import { useKeyboardControl } from '../hooks/useKeyboardControl'
 
 export function LayoutSplit() {
+  // Enable keyboard control
+  useKeyboardControl()
+
   return (
     <div className="min-h-screen bg-white flex">
       {/* Left sidebar */}
@@ -33,6 +37,31 @@ export function LayoutSplit() {
             <ControlButton label="Run" icon="play" />
             <ControlButton label="Pause" icon="pause" />
             <ControlButton label="Reset" icon="reset" />
+          </div>
+        </div>
+
+        {/* Keyboard controls hint */}
+        <div className="p-4 border-b border-gray-100">
+          <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
+            Drive Robot
+          </h3>
+          <div className="text-xs text-gray-500 space-y-1">
+            <div className="flex gap-2">
+              <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-gray-700">W</kbd>
+              <span>Forward</span>
+            </div>
+            <div className="flex gap-2">
+              <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-gray-700">S</kbd>
+              <span>Backward</span>
+            </div>
+            <div className="flex gap-2">
+              <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-gray-700">A</kbd>
+              <span>Turn left</span>
+            </div>
+            <div className="flex gap-2">
+              <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-gray-700">D</kbd>
+              <span>Turn right</span>
+            </div>
           </div>
         </div>
 

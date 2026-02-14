@@ -203,8 +203,22 @@ function subscribeToTopics() {
   })
 
   lidarTopic.subscribe((msg: unknown) => {
-    const message = msg as { ranges: number[]; angle_min: number; angle_max: number }
-    store.setLidar(message.ranges, message.angle_min, message.angle_max)
+    const message = msg as {
+      ranges: number[]
+      angle_min: number
+      angle_max: number
+      robot_x: number
+      robot_y: number
+      robot_theta: number
+    }
+    store.setLidar(
+      message.ranges,
+      message.angle_min,
+      message.angle_max,
+      message.robot_x,
+      message.robot_y,
+      message.robot_theta
+    )
   })
 
   // Task status

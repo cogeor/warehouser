@@ -1,10 +1,7 @@
-import type { LegacyRef } from 'react'
 import { Image, Circle, Arrow, Group } from 'react-konva'
-import Konva from 'konva'
 import { Entity } from '../../store/appStore'
 import { CoordinateTransform } from '../../utils/transforms'
 import { useSprite } from '../../hooks/useSprite'
-import { useMultipleEntityAnimations } from '../../hooks/useEntityAnimation'
 import { ROBOT_SPRITE } from '../../assets/sprites'
 
 /**
@@ -46,7 +43,7 @@ export interface CanvasRobotsProps {
  * Features:
  * - Loads and displays ROBOT_SPRITE when available
  * - Falls back to circle with direction arrow if sprite fails to load
- * - Smooth animation between positions using useMultipleEntityAnimations
+ * - Direct rendering without animation for instant updates (no lag with lidar)
  * - Orange ring indicator when robot is carrying an object
  * - Highlights selected robot with thicker stroke
  * - Click handler to select robots
@@ -79,18 +76,6 @@ export function CanvasRobots({
   const worldSize = canvasSize / scale
   const transform = new CoordinateTransform(worldSize, canvasSize)
 
-  // Build animation targets map for all robots
-  const animationTargets = new Map(
-    robots.map((robot) => {
-      const [canvasX, canvasY] = transform.worldToCanvas(robot.x, robot.y)
-      const rotation = transform.worldThetaToCanvasRotation(robot.theta ?? 0)
-      return [robot.id, { x: canvasX, y: canvasY, rotation }]
-    })
-  )
-
-  // Get refs for animating all robots
-  const { getRef } = useMultipleEntityAnimations<Konva.Group>(animationTargets)
-
   // Calculate fallback rendering values
   const fallbackRadius = 0.3 * scale
   const arrowLength = 0.4 * scale
@@ -114,11 +99,10 @@ export function CanvasRobots({
         }
 
         if (robotImage) {
-          // Render with sprite
+          // Render with sprite - direct rendering without animation
           return (
             <Group
               key={robot.id}
-              ref={getRef(robot.id) as unknown as LegacyRef<Konva.Group>}
               x={canvasX}
               y={canvasY}
               rotation={rotation}
@@ -158,7 +142,6 @@ export function CanvasRobots({
         return (
           <Group
             key={robot.id}
-            ref={getRef(robot.id) as unknown as LegacyRef<Konva.Group>}
             x={canvasX}
             y={canvasY}
             onClick={handleClick}

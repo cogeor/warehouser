@@ -86,10 +86,13 @@ export function RosDataBridge(): null {
 
   // Track previous values to avoid redundant updates
   const prevEntitiesRef = useRef<Entity[]>([]);
-  const prevLidarRef = useRef<{ ranges: number[]; angleMin: number; angleMax: number }>({
+  const prevLidarRef = useRef<{ ranges: number[]; angleMin: number; angleMax: number; robotX: number; robotY: number; robotTheta: number }>({
     ranges: [],
     angleMin: 0,
     angleMax: 0,
+    robotX: 0,
+    robotY: 0,
+    robotTheta: 0,
   });
   const prevTaskRef = useRef<{ state: string; intent: string }>({ state: '', intent: '' });
 
@@ -125,6 +128,7 @@ export function RosDataBridge(): null {
   }, [worldState]);
 
   // Sync lidar data to store (only when data changes)
+  // Per ROS2 TF2 best practices: robot pose is bundled with lidar scan for guaranteed coupling
   useEffect(() => {
     if (!lidarDebug) return;
 
@@ -132,14 +136,28 @@ export function RosDataBridge(): null {
     const rangesChanged = !arraysEqual(lidarDebug.ranges, prev.ranges);
     const anglesChanged =
       lidarDebug.angle_min !== prev.angleMin || lidarDebug.angle_max !== prev.angleMax;
+    const poseChanged =
+      lidarDebug.robot_x !== prev.robotX ||
+      lidarDebug.robot_y !== prev.robotY ||
+      lidarDebug.robot_theta !== prev.robotTheta;
 
-    if (rangesChanged || anglesChanged) {
+    if (rangesChanged || anglesChanged || poseChanged) {
       prevLidarRef.current = {
         ranges: lidarDebug.ranges,
         angleMin: lidarDebug.angle_min,
         angleMax: lidarDebug.angle_max,
+        robotX: lidarDebug.robot_x,
+        robotY: lidarDebug.robot_y,
+        robotTheta: lidarDebug.robot_theta,
       };
-      useAppStore.getState().setLidar(lidarDebug.ranges, lidarDebug.angle_min, lidarDebug.angle_max);
+      useAppStore.getState().setLidar(
+        lidarDebug.ranges,
+        lidarDebug.angle_min,
+        lidarDebug.angle_max,
+        lidarDebug.robot_x,
+        lidarDebug.robot_y,
+        lidarDebug.robot_theta
+      );
     }
   }, [lidarDebug]);
 

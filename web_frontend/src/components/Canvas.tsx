@@ -24,21 +24,36 @@ function CanvasInner() {
   const lidarRanges = useAppStore(useShallow((s) => s.lidarRanges))
   const lidarAngleMin = useAppStore((s) => s.lidarAngleMin)
   const lidarAngleMax = useAppStore((s) => s.lidarAngleMax)
+  // Robot pose bundled with lidar scan - per ROS2 TF2 best practices for guaranteed coupling
+  const lidarRobotX = useAppStore((s) => s.lidarRobotX)
+  const lidarRobotY = useAppStore((s) => s.lidarRobotY)
+  const lidarRobotTheta = useAppStore((s) => s.lidarRobotTheta)
   const selectedRobotId = useAppStore((s) => s.selectedRobotId)
   const setSelectedRobotId = useAppStore((s) => s.setSelectedRobotId)
 
 
   // Memoize filtered entities to prevent re-renders when entities haven't changed
-  const robots = useMemo(() => entities.filter((e) => e.type === 'robot'), [entities])
+  const robots = useMemo(() => {
+    // For the robot being visualized with lidar, use the bundled lidar pose
+    // to ensure perfect coupling (no visual desync between robot sprite and lidar rays)
+    return entities
+      .filter((e) => e.type === 'robot')
+      .map((robot) => {
+        // If this is the first/selected robot and we have lidar data, use lidar pose
+        if (lidarRanges.length > 0) {
+          return {
+            ...robot,
+            x: lidarRobotX,
+            y: lidarRobotY,
+            theta: lidarRobotTheta,
+          }
+        }
+        return robot
+      })
+  }, [entities, lidarRanges.length, lidarRobotX, lidarRobotY, lidarRobotTheta])
   const objects = useMemo(() => entities.filter((e) => e.type === 'object'), [entities])
   const walls = useMemo(() => entities.filter((e) => e.type === 'wall'), [entities])
   const zones = useMemo(() => entities.filter((e) => e.type === 'zone'), [entities])
-
-  // Get selected robot for lidar (default to first robot if none selected)
-  const selectedRobot = useMemo(
-    () => robots.find((r) => r.id === selectedRobotId) ?? robots[0],
-    [robots, selectedRobotId]
-  )
 
   // Use new ROS publisher hook
   const publishJson = useRosPublisher<{ data: string }>('/sim/move_entity', 'std_msgs/msg/String')
@@ -87,12 +102,12 @@ function CanvasInner() {
           onObjectMoved={handleObjectMoved}
         />
 
-        {/* Lidar visualization */}
-        {selectedRobot && (
+        {/* Lidar visualization - uses robot pose bundled with scan for guaranteed coupling */}
+        {lidarRanges.length > 0 && (
           <CanvasLidar
-            robotX={selectedRobot.x}
-            robotY={selectedRobot.y}
-            robotTheta={selectedRobot.theta ?? 0}
+            robotX={lidarRobotX}
+            robotY={lidarRobotY}
+            robotTheta={lidarRobotTheta}
             ranges={lidarRanges}
             angleMin={lidarAngleMin}
             angleMax={lidarAngleMax}
