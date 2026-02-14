@@ -1,14 +1,40 @@
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.4
+  # All hooks use local system tools for Windows compatibility
+  - repo: local
     hooks:
-      - id: ruff
-        args: [--fix]
+      # Python hooks
+      - id: ruff-check
+        name: ruff check
+        entry: bash -c 'cd training && uv run ruff check . --fix'
+        language: system
+        files: ^training/.*\.py$
+        pass_filenames: false
+
       - id: ruff-format
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.14.0
-    hooks:
+        name: ruff format
+        entry: bash -c 'cd training && uv run ruff format .'
+        language: system
+        files: ^training/.*\.py$
+        pass_filenames: false
+
       - id: mypy
-        args: [--ignore-missing-imports]
-        additional_dependencies: [pydantic, pytest, numpy, gymnasium]
-        files: ^training/
+        name: mypy
+        entry: bash -c 'cd training && uv run mypy training tests --ignore-missing-imports'
+        language: system
+        files: ^training/.*\.py$
+        pass_filenames: false
+
+      # TypeScript hooks
+      - id: eslint
+        name: ESLint
+        entry: bash -c 'cd web_frontend && npm run lint'
+        language: system
+        files: ^web_frontend/src/.*\.(ts|tsx)$
+        pass_filenames: false
+
+      - id: typescript
+        name: TypeScript
+        entry: bash -c 'cd web_frontend && npx tsc --noEmit'
+        language: system
+        files: ^web_frontend/src/.*\.(ts|tsx)$
+        pass_filenames: false
