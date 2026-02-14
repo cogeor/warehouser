@@ -158,52 +158,61 @@ describe('CoordinateTransform', () => {
   describe('worldThetaToCanvasRotation', () => {
     const transform = new CoordinateTransform()
 
-    it('converts theta=0 (facing +X forward) to -90 degrees', () => {
+    it('converts theta=0 (facing +X forward) to 90 degrees', () => {
+      // Sprite faces UP by default, +90° CW rotation makes it face RIGHT (theta=0)
       const rotation = transform.worldThetaToCanvasRotation(0)
-      expect(rotation).toBe(-90)
+      expect(rotation).toBe(90)
     })
 
-    it('converts theta=PI/2 (facing +Y left) to -180 degrees', () => {
+    it('converts theta=PI/2 (facing +Y left) to 0 degrees', () => {
+      // theta=PI/2 is facing left in ROS = UP on canvas (Y is flipped)
       const rotation = transform.worldThetaToCanvasRotation(Math.PI / 2)
-      expect(rotation).toBe(-180)
-    })
-
-    it('converts theta=PI (facing -X backward) to -270 degrees', () => {
-      const rotation = transform.worldThetaToCanvasRotation(Math.PI)
-      expect(rotation).toBe(-270)
-    })
-
-    it('converts theta=-PI/2 (facing -Y right) to 0 degrees', () => {
-      const rotation = transform.worldThetaToCanvasRotation(-Math.PI / 2)
       expect(rotation).toBe(0)
     })
 
+    it('converts theta=PI (facing -X backward) to -90 degrees', () => {
+      // theta=PI is facing backward = LEFT on canvas
+      const rotation = transform.worldThetaToCanvasRotation(Math.PI)
+      expect(rotation).toBe(-90)
+    })
+
+    it('converts theta=-PI/2 (facing -Y right) to 180 degrees', () => {
+      // theta=-PI/2 is facing right in ROS = DOWN on canvas
+      const rotation = transform.worldThetaToCanvasRotation(-Math.PI / 2)
+      expect(rotation).toBe(180)
+    })
+
     it('handles arbitrary angles', () => {
+      // theta=PI/4 (45 degrees CCW) -> rotation = 90 - 45 = 45
       const rotation = transform.worldThetaToCanvasRotation(Math.PI / 4)
-      expect(rotation).toBeCloseTo(-135, 10)
+      expect(rotation).toBeCloseTo(45, 10)
     })
   })
 
   describe('canvasRotationToWorldTheta', () => {
     const transform = new CoordinateTransform()
 
-    it('converts -90 degrees to theta=0', () => {
-      const theta = transform.canvasRotationToWorldTheta(-90)
+    it('converts 90 degrees to theta=0', () => {
+      // 90 degree canvas rotation = facing right = theta=0
+      const theta = transform.canvasRotationToWorldTheta(90)
       expect(theta).toBeCloseTo(0, 10)
     })
 
-    it('converts -180 degrees to theta=PI/2', () => {
-      const theta = transform.canvasRotationToWorldTheta(-180)
+    it('converts 0 degrees to theta=PI/2', () => {
+      // 0 degree canvas rotation = facing up = theta=PI/2 (facing left in ROS)
+      const theta = transform.canvasRotationToWorldTheta(0)
       expect(theta).toBeCloseTo(Math.PI / 2, 10)
     })
 
-    it('converts -270 degrees to theta=PI', () => {
-      const theta = transform.canvasRotationToWorldTheta(-270)
+    it('converts -90 degrees to theta=PI', () => {
+      // -90 degree canvas rotation = facing left = theta=PI (facing backward)
+      const theta = transform.canvasRotationToWorldTheta(-90)
       expect(theta).toBeCloseTo(Math.PI, 10)
     })
 
-    it('converts 0 degrees to theta=-PI/2', () => {
-      const theta = transform.canvasRotationToWorldTheta(0)
+    it('converts 180 degrees to theta=-PI/2', () => {
+      // 180 degree canvas rotation = facing down = theta=-PI/2 (facing right in ROS)
+      const theta = transform.canvasRotationToWorldTheta(180)
       expect(theta).toBeCloseTo(-Math.PI / 2, 10)
     })
   })

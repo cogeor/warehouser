@@ -87,20 +87,22 @@ export class CoordinateTransform {
   /**
    * Convert world theta (CCW from X-axis) to canvas rotation (CW degrees)
    *
-   * ROS theta: 0 = facing +X (forward), positive = CCW
+   * ROS theta: 0 = facing +X (forward/right), positive = CCW
    * Canvas rotation: in degrees, positive = CW
+   * Sprite default: facing UP (-Y in canvas)
    *
    * The conversion accounts for:
    * 1. Y-axis flip (negates angle direction)
-   * 2. Sprite orientation offset (-90 degrees because sprites typically face "up")
+   * 2. Sprite orientation offset (+90 degrees to rotate UP-facing sprite to RIGHT)
    * 3. Radians to degrees conversion
    *
    * @param theta - World theta in radians (CCW from X-axis)
    * @returns Canvas rotation in degrees (CW from X-axis, adjusted for sprite)
    */
   worldThetaToCanvasRotation(theta: number): number {
-    // Negate for Y-flip, convert to degrees, offset by -90 for sprite orientation
-    return (-theta * 180) / Math.PI - 90
+    // Negate for Y-flip, convert to degrees, offset by +90 for sprite orientation
+    // Sprite faces UP by default, +90° CW rotation makes it face RIGHT (theta=0)
+    return (-theta * 180) / Math.PI + 90
   }
 
   /**
@@ -113,7 +115,7 @@ export class CoordinateTransform {
    */
   canvasRotationToWorldTheta(rotation: number): number {
     // Reverse the sprite offset, convert to radians, negate for Y-flip
-    return (-(rotation + 90) * Math.PI) / 180
+    return (-(rotation - 90) * Math.PI) / 180
   }
 
   /**
