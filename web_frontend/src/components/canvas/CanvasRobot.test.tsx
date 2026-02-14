@@ -12,33 +12,39 @@ vi.mock('konva', () => ({
 vi.mock('react-konva', () => ({
   Stage: ({ children }: { children: ReactNode }) => <div data-testid="stage">{children}</div>,
   Layer: ({ children }: { children: ReactNode }) => <div data-testid="layer">{children}</div>,
-  Group: React.forwardRef(
-    (
-      props: { children: ReactNode; onClick?: () => void; 'data-testid'?: string },
-      _ref: ForwardedRef<unknown>
-    ) => (
+  Group: React.forwardRef(function Group(
+    props: { children: ReactNode; onClick?: () => void; 'data-testid'?: string },
+    ref: ForwardedRef<unknown>
+  ) {
+    void ref;
+    return (
       <div data-testid={props['data-testid'] ?? 'group'} onClick={props.onClick}>
         {props.children}
       </div>
     )
-  ),
-  Image: React.forwardRef((props: Record<string, unknown>, _ref: ForwardedRef<unknown>) => (
-    <div data-testid="image" data-x={props.x} data-y={props.y} data-rotation={props.rotation} />
-  )),
-  Circle: React.forwardRef((props: Record<string, unknown>, _ref: ForwardedRef<unknown>) => (
-    <div
-      data-testid="circle"
-      data-x={props.x}
-      data-y={props.y}
-      data-radius={props.radius}
-      data-fill={props.fill}
-      data-stroke={props.stroke}
-      data-stroke-width={props.strokeWidth}
-    />
-  )),
-  Arrow: React.forwardRef((props: Record<string, unknown>, _ref: ForwardedRef<unknown>) => (
-    <div data-testid="arrow" data-x={props.x} data-y={props.y} />
-  )),
+  }),
+  Image: React.forwardRef(function Image(props: Record<string, unknown>, ref: ForwardedRef<unknown>) {
+    void ref;
+    return <div data-testid="image" data-x={props.x} data-y={props.y} data-rotation={props.rotation} />
+  }),
+  Circle: React.forwardRef(function Circle(props: Record<string, unknown>, ref: ForwardedRef<unknown>) {
+    void ref;
+    return (
+      <div
+        data-testid="circle"
+        data-x={props.x}
+        data-y={props.y}
+        data-radius={props.radius}
+        data-fill={props.fill}
+        data-stroke={props.stroke}
+        data-stroke-width={props.strokeWidth}
+      />
+    )
+  }),
+  Arrow: React.forwardRef(function Arrow(props: Record<string, unknown>, ref: ForwardedRef<unknown>) {
+    void ref;
+    return <div data-testid="arrow" data-x={props.x} data-y={props.y} />
+  }),
 }))
 
 // Variable to control useSprite mock return value

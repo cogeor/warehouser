@@ -169,6 +169,9 @@ export function useMultipleEntityAnimations<T extends Konva.Node>(
 
   // Update animations when targets change
   useEffect(() => {
+    // Capture current ref values for cleanup
+    const currentTweensMap = tweensMap.current;
+
     targets.forEach((target, id) => {
       const node = refsMap.current.get(id);
       if (!node) return;
@@ -186,7 +189,7 @@ export function useMultipleEntityAnimations<T extends Konva.Node>(
       } else {
         // Subsequent updates: animate to target
         // Stop any existing animation for this entity
-        const existingTween = tweensMap.current.get(id);
+        const existingTween = currentTweensMap.get(id);
         if (existingTween) {
           existingTween.destroy();
         }
@@ -204,7 +207,7 @@ export function useMultipleEntityAnimations<T extends Konva.Node>(
         }
 
         const tween = new Konva.Tween(tweenConfig);
-        tweensMap.current.set(id, tween);
+        currentTweensMap.set(id, tween);
         tween.play();
       }
     });
@@ -214,10 +217,10 @@ export function useMultipleEntityAnimations<T extends Konva.Node>(
     for (const id of firstRenderMap.current.keys()) {
       if (!targetIds.has(id)) {
         firstRenderMap.current.delete(id);
-        const tween = tweensMap.current.get(id);
+        const tween = currentTweensMap.get(id);
         if (tween) {
           tween.destroy();
-          tweensMap.current.delete(id);
+          currentTweensMap.delete(id);
         }
         refsMap.current.delete(id);
       }
@@ -225,7 +228,7 @@ export function useMultipleEntityAnimations<T extends Konva.Node>(
 
     // Cleanup all tweens on unmount
     return () => {
-      tweensMap.current.forEach((tween) => tween.destroy());
+      currentTweensMap.forEach((tween) => tween.destroy());
     };
   }, [targets, duration, easing]);
 
@@ -245,4 +248,3 @@ export function useMultipleEntityAnimations<T extends Konva.Node>(
     refs: refsMap.current,
   };
 }
-

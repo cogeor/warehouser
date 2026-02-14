@@ -37,7 +37,12 @@ export function CanvasObjects({
   onObjectMoved,
 }: CanvasObjectsProps): React.ReactElement {
   const crateImages = useSprites(CRATE_SPRITES);
-  const transform = new CoordinateTransform(canvasSize / scale, canvasSize);
+
+  // Memoize transform to avoid useMemo dependency issues
+  const transform = useMemo(
+    () => new CoordinateTransform(canvasSize / scale, canvasSize),
+    [canvasSize, scale]
+  );
 
   // Build animation targets map
   const animationTargets = useMemo(() => {

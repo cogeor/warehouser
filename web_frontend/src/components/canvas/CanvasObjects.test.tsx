@@ -15,7 +15,8 @@ let lastDragEndHandler: ((e: { target: { x: () => number; y: () => number } }) =
 vi.mock('react-konva', () => ({
   Stage: ({ children }: { children: ReactNode }) => <div data-testid="stage">{children}</div>,
   Layer: ({ children }: { children: ReactNode }) => <div data-testid="layer">{children}</div>,
-  Image: React.forwardRef((props: Record<string, unknown>, _ref: ForwardedRef<unknown>) => {
+  Image: React.forwardRef(function Image(props: Record<string, unknown>, ref: ForwardedRef<unknown>) {
+    void ref;
     if (props.onDragEnd) {
       lastDragEndHandler = props.onDragEnd as (e: { target: { x: () => number; y: () => number } }) => void
     }
@@ -28,7 +29,8 @@ vi.mock('react-konva', () => ({
       />
     )
   }),
-  Circle: React.forwardRef((props: Record<string, unknown>, _ref: ForwardedRef<unknown>) => {
+  Circle: React.forwardRef(function Circle(props: Record<string, unknown>, ref: ForwardedRef<unknown>) {
+    void ref;
     if (props.onDragEnd) {
       lastDragEndHandler = props.onDragEnd as (e: { target: { x: () => number; y: () => number } }) => void
     }

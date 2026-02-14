@@ -20,11 +20,11 @@ interface KonvaProps {
 vi.mock('react-konva', () => ({
   Stage: ({ children }: KonvaProps) => children,
   Layer: ({ children }: KonvaProps) => children,
-  Rect: React.forwardRef((_props: KonvaProps, _ref: ForwardedRef<unknown>) => null),
-  Circle: React.forwardRef((_props: KonvaProps, _ref: ForwardedRef<unknown>) => null),
-  Arrow: React.forwardRef((_props: KonvaProps, _ref: ForwardedRef<unknown>) => null),
-  Line: React.forwardRef((_props: KonvaProps, _ref: ForwardedRef<unknown>) => null),
-  Image: React.forwardRef((_props: KonvaProps, _ref: ForwardedRef<unknown>) => null),
+  Rect: React.forwardRef(function MockComponent(props: KonvaProps, ref: ForwardedRef<unknown>) { void props; void ref; return null; }),
+  Circle: React.forwardRef(function MockComponent(props: KonvaProps, ref: ForwardedRef<unknown>) { void props; void ref; return null; }),
+  Arrow: React.forwardRef(function MockComponent(props: KonvaProps, ref: ForwardedRef<unknown>) { void props; void ref; return null; }),
+  Line: React.forwardRef(function MockComponent(props: KonvaProps, ref: ForwardedRef<unknown>) { void props; void ref; return null; }),
+  Image: React.forwardRef(function MockComponent(props: KonvaProps, ref: ForwardedRef<unknown>) { void props; void ref; return null; }),
   Group: ({ children }: KonvaProps) => children,
 }))
 
