@@ -32,25 +32,12 @@ function CanvasInner() {
   const setSelectedRobotId = useAppStore((s) => s.setSelectedRobotId)
 
 
-  // Memoize filtered entities to prevent re-renders when entities haven't changed
-  const robots = useMemo(() => {
-    // For the robot being visualized with lidar, use the bundled lidar pose
-    // to ensure perfect coupling (no visual desync between robot sprite and lidar rays)
-    return entities
-      .filter((e) => e.type === 'robot')
-      .map((robot) => {
-        // If this is the first/selected robot and we have lidar data, use lidar pose
-        if (lidarRanges.length > 0) {
-          return {
-            ...robot,
-            x: lidarRobotX,
-            y: lidarRobotY,
-            theta: lidarRobotTheta,
-          }
-        }
-        return robot
-      })
-  }, [entities, lidarRanges.length, lidarRobotX, lidarRobotY, lidarRobotTheta])
+  // Memoize filtered entities - WorldState is source of truth for robot positions
+  // Lidar visualization uses bundled pose from LidarDebug message (already correct coupling)
+  const robots = useMemo(
+    () => entities.filter((e) => e.type === 'robot'),
+    [entities]
+  )
   const objects = useMemo(() => entities.filter((e) => e.type === 'object'), [entities])
   const walls = useMemo(() => entities.filter((e) => e.type === 'wall'), [entities])
   const zones = useMemo(() => entities.filter((e) => e.type === 'zone'), [entities])

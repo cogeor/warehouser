@@ -4,7 +4,6 @@ import Konva from 'konva';
 import { Entity } from '../../store/appStore';
 import { useSprites } from '../../hooks/useSprite';
 import { CRATE_SPRITES } from '../../assets/sprites/index';
-import { useMultipleEntityAnimations, AnimationTarget } from '../../hooks/useEntityAnimation';
 import { CoordinateTransform } from '../../utils/transforms';
 
 /** Object size in meters */
@@ -44,18 +43,6 @@ export function CanvasObjects({
     [canvasSize, scale]
   );
 
-  // Build animation targets map
-  const animationTargets = useMemo(() => {
-    const targets = new Map<string, AnimationTarget>();
-    for (const obj of objects) {
-      const [cx, cy] = transform.worldToCanvas(obj.x, obj.y);
-      targets.set(obj.id, { x: cx, y: cy });
-    }
-    return targets;
-  }, [objects, transform]);
-
-  const { getRef } = useMultipleEntityAnimations<Konva.Image | Konva.Circle>(animationTargets);
-
   const objSize = OBJECT_SIZE * scale;
 
   const handleDragEnd = (objId: string) => (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -74,7 +61,6 @@ export function CanvasObjects({
         return crateImage ? (
           <Image
             key={obj.id}
-            ref={getRef(obj.id) as (node: Konva.Image | null) => void}
             image={crateImage}
             x={cx}
             y={cy}
@@ -88,7 +74,6 @@ export function CanvasObjects({
         ) : (
           <Circle
             key={obj.id}
-            ref={getRef(obj.id) as (node: Konva.Circle | null) => void}
             x={cx}
             y={cy}
             radius={(OBJECT_SIZE / 2) * scale}
