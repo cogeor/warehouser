@@ -136,7 +136,7 @@ export function RosDataBridge(): null {
 
     // Record trajectory point if trace is enabled (with throttling)
     const state = useAppStore.getState();
-    if (state.traceEnabled) {
+    if (state.traceEnabled && worldState.running) {
       const now = Date.now();
       if (now - lastTrajectoryTimestampRef.current >= TRAJECTORY_THROTTLE_MS) {
         // Find the selected robot (or first robot if none selected)
