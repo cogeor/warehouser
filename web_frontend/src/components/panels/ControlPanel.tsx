@@ -17,6 +17,8 @@ export function ControlPanel({ isCollapsed }: PanelProps) {
   const setSimRunning = useAppStore((s) => s.setSimRunning)
   const demoActive = useAppStore((s) => s.demoActive)
   const setDemoActive = useAppStore((s) => s.setDemoActive)
+  const policyEnabled = useAppStore((s) => s.policyEnabled)
+  const setPolicyEnabled = useAppStore((s) => s.setPolicyEnabled)
 
   const demoIntervalRef = useRef<number | null>(null)
   const colorIndexRef = useRef(0)
@@ -26,6 +28,7 @@ export function ControlPanel({ isCollapsed }: PanelProps) {
   const pauseSim = useTriggerService('/sim/pause')
   const resetSim = useTriggerService('/sim/reset')
   const publishJson = useRosPublisher<{ data: string }>('/command/json', 'std_msgs/msg/String')
+  const publishPolicyEnable = useRosPublisher<{ data: boolean }>('/inference/enable', 'std_msgs/msg/Bool')
 
   const publishCommand = useCallback(
     (target: string) => {
@@ -88,6 +91,12 @@ export function ControlPanel({ isCollapsed }: PanelProps) {
     } else {
       startAutoDemo()
     }
+  }
+
+  const handlePolicyToggle = () => {
+    const newState = !policyEnabled
+    setPolicyEnabled(newState)
+    publishPolicyEnable({ data: newState })
   }
 
   return (
@@ -174,6 +183,30 @@ export function ControlPanel({ isCollapsed }: PanelProps) {
             {demoActive && (
               <p className="text-sm text-gray-400 text-center mt-2">
                 Demo running... cycling through colors
+              </p>
+            )}
+          </div>
+
+          {/* Policy Control */}
+          <div className="border-t border-gray-700 pt-3 mt-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-300">Policy Inference</span>
+              <button
+                onClick={handlePolicyToggle}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  policyEnabled ? 'bg-blue-600' : 'bg-gray-600'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    policyEnabled ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+            {policyEnabled && (
+              <p className="text-sm text-blue-400 text-center mt-2">
+                Policy running...
               </p>
             )}
           </div>

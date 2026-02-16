@@ -45,6 +45,8 @@ export interface AppState {
   setSimRunning: (running: boolean) => void
   simTime: number
   setSimTime: (time: number) => void
+  policyEnabled: boolean
+  setPolicyEnabled: (enabled: boolean) => void
 
   // Selection
   selectedEntityId: string | null
@@ -92,6 +94,8 @@ export const useAppStore = create<AppState>((set) => ({
   setSimRunning: (running) => set({ simRunning: running }),
   simTime: 0,
   setSimTime: (time) => set({ simTime: time }),
+  policyEnabled: false,
+  setPolicyEnabled: (enabled) => set({ policyEnabled: enabled }),
 
   // Selection
   selectedEntityId: null,

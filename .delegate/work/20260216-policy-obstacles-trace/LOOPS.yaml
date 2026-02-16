@@ -1,0 +1,43 @@
+loops:
+  - id: 01
+    summary: "Add frontend UI toggle and ROS topic for policy inference control"
+    scope: "web_frontend, warehouser_inference"
+    type: "feat"
+    details: |
+      - Add policyEnabled state to appStore
+      - Add toggle switch in ControlPanel for policy on/off
+      - Publish to /inference/enable topic when toggled
+      - Inference node already subscribes to /inference/enable
+
+  - id: 02
+    summary: "Add obstacles to simulation and enlarge world"
+    scope: "warehouser_simulation"
+    type: "feat"
+    details: |
+      - Increase world dimensions in simulation_params.yaml (e.g., 20x20)
+      - Add Obstacle entity type (like Wall but for interior obstacles)
+      - Add obstacles in WorldManager::createDefaultWorld()
+      - Obstacles should be collidable and affect lidar raycast
+      - Frontend already renders walls; obstacles can use same rendering
+
+  - id: 03
+    summary: "Add trajectory trace feature with options panel"
+    scope: "web_frontend"
+    type: "feat"
+    details: |
+      - Create OptionsPanel component with trace checkbox
+      - Add traceEnabled and trajectoryHistory to appStore
+      - Store robot positions when trace enabled (throttled)
+      - Render trajectory as polyline in Canvas
+      - Add clear trajectory button
+
+  - id: 04
+    summary: "Multi-robot architecture review and report"
+    scope: "documentation"
+    type: "docs"
+    details: |
+      - Review all ROS topics for namespacing requirements
+      - Analyze services for multi-robot support
+      - Check TF frame conventions
+      - Examine frontend state management for multiple robots
+      - Produce MULTI_ROBOT_REVIEW.md with findings and recommendations

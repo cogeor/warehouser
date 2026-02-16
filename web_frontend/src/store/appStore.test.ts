@@ -17,6 +17,7 @@ describe('AppStore', () => {
       taskIntent: '',
       simRunning: false,
       simTime: 0,
+      policyEnabled: false,
       selectedEntityId: null,
     })
   })
@@ -118,6 +119,20 @@ describe('AppStore', () => {
       useAppStore.getState().setSelectedEntityId('obj_1')
       useAppStore.getState().setSelectedEntityId(null)
       expect(useAppStore.getState().selectedEntityId).toBeNull()
+    })
+  })
+
+  describe('policy', () => {
+    it('sets policy enabled state', () => {
+      useAppStore.getState().setPolicyEnabled(true)
+      expect(useAppStore.getState().policyEnabled).toBe(true)
+    })
+
+    it('can toggle policy enabled state', () => {
+      useAppStore.getState().setPolicyEnabled(true)
+      expect(useAppStore.getState().policyEnabled).toBe(true)
+      useAppStore.getState().setPolicyEnabled(false)
+      expect(useAppStore.getState().policyEnabled).toBe(false)
     })
   })
 })

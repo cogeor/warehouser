@@ -9,6 +9,7 @@ const mockStartSim = vi.fn().mockResolvedValue(true)
 const mockPauseSim = vi.fn().mockResolvedValue(true)
 const mockResetSim = vi.fn().mockResolvedValue(true)
 const mockPublishJson = vi.fn()
+const mockPublishPolicyEnable = vi.fn()
 
 // Mock the ROS service hooks
 vi.mock('../hooks/useRosService', () => ({
@@ -18,7 +19,10 @@ vi.mock('../hooks/useRosService', () => ({
     if (serviceName === '/sim/reset') return mockResetSim
     return vi.fn().mockResolvedValue(false)
   },
-  useRosPublisher: () => mockPublishJson,
+  useRosPublisher: (topic: string) => {
+    if (topic === '/inference/enable') return mockPublishPolicyEnable
+    return mockPublishJson
+  },
 }))
 
 // Mock RosConnectionProvider
@@ -37,7 +41,7 @@ vi.mock('../hooks/useRosConnection', () => ({
 describe('ControlPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    useAppStore.setState({ simRunning: false, demoActive: false })
+    useAppStore.setState({ simRunning: false, demoActive: false, policyEnabled: false })
   })
 
   it('renders start button when not running', () => {
@@ -80,6 +84,50 @@ describe('ControlPanel', () => {
     fireEvent.click(screen.getByText('Reset'))
     await waitFor(() => {
       expect(mockResetSim).toHaveBeenCalled()
+    })
+  })
+
+  describe('policy toggle', () => {
+    it('renders policy toggle', () => {
+      render(<ControlPanel />)
+      expect(screen.getByText('Policy Inference')).toBeInTheDocument()
+    })
+
+    it('publishes to /inference/enable when toggled on', async () => {
+      render(<ControlPanel />)
+      const toggle = screen.getByText('Policy Inference').parentElement?.querySelector('button')
+      expect(toggle).toBeTruthy()
+      fireEvent.click(toggle!)
+      await waitFor(() => {
+        expect(mockPublishPolicyEnable).toHaveBeenCalledWith({ data: true })
+      })
+    })
+
+    it('publishes to /inference/enable when toggled off', async () => {
+      useAppStore.setState({ policyEnabled: true })
+      render(<ControlPanel />)
+      const toggle = screen.getByText('Policy Inference').parentElement?.querySelector('button')
+      expect(toggle).toBeTruthy()
+      fireEvent.click(toggle!)
+      await waitFor(() => {
+        expect(mockPublishPolicyEnable).toHaveBeenCalledWith({ data: false })
+      })
+    })
+
+    it('updates store state when toggled', async () => {
+      render(<ControlPanel />)
+      expect(useAppStore.getState().policyEnabled).toBe(false)
+      const toggle = screen.getByText('Policy Inference').parentElement?.querySelector('button')
+      fireEvent.click(toggle!)
+      await waitFor(() => {
+        expect(useAppStore.getState().policyEnabled).toBe(true)
+      })
+    })
+
+    it('shows status text when policy is enabled', () => {
+      useAppStore.setState({ policyEnabled: true })
+      render(<ControlPanel />)
+      expect(screen.getByText('Policy running...')).toBeInTheDocument()
     })
   })
 })
