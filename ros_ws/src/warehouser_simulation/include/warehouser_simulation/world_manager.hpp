@@ -17,17 +17,17 @@ namespace warehouser {
 /// Configuration for a single robot spawn
 struct RobotSpawnConfig {
     std::string id = "robot";
-    float x = 1.0f;
-    float y = 1.0f;
+    float x = 2.0f;
+    float y = 2.0f;
     float theta = 0.0f;
 };
 
 /// Configuration for the world
 struct WorldConfig {
-    float width = 10.0f;
-    float height = 10.0f;
+    float width = 20.0f;
+    float height = 20.0f;
     // Legacy: single robot spawn (for backward compatibility)
-    std::array<float, 3> robot_spawn = {1.0f, 1.0f, 0.0f};  // x, y, theta
+    std::array<float, 3> robot_spawn = {2.0f, 2.0f, 0.0f};  // x, y, theta
     // Multi-robot: list of robot spawns (if empty, uses robot_spawn)
     std::vector<RobotSpawnConfig> robot_spawns;
 };

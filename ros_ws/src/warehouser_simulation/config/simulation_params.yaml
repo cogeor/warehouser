@@ -4,11 +4,11 @@ simulation:
     dt: 0.02  # 50 Hz simulation rate
 
     # World dimensions
-    world_width: 10.0
-    world_height: 10.0
+    world_width: 20.0
+    world_height: 20.0
 
     # Robot spawn position [x, y, theta]
-    robot_spawn: [1.0, 1.0, 0.0]
+    robot_spawn: [2.0, 2.0, 0.0]
 
     # Optional: path to world config file
     config: ""

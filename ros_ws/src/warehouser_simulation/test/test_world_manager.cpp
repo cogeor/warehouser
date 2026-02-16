@@ -8,9 +8,9 @@ class WorldManagerTest : public ::testing::Test {
 protected:
     void SetUp() override {
         WorldConfig config;
-        config.width = 10.0f;
-        config.height = 10.0f;
-        config.robot_spawn = {1.0f, 1.0f, 0.0f};
+        config.width = 20.0f;
+        config.height = 20.0f;
+        config.robot_spawn = {2.0f, 2.0f, 0.0f};
 
         world_ = std::make_unique<WorldManager>(config);
         world_->loadConfig("");  // Load default world
@@ -26,8 +26,8 @@ TEST_F(WorldManagerTest, HasRobotAfterInit) {
 
 TEST_F(WorldManagerTest, RobotSpawnPosition) {
     auto* robot = world_->robot();
-    EXPECT_NEAR(robot->x, 1.0f, 0.01f);
-    EXPECT_NEAR(robot->y, 1.0f, 0.01f);
+    EXPECT_NEAR(robot->x, 2.0f, 0.01f);
+    EXPECT_NEAR(robot->y, 2.0f, 0.01f);
     EXPECT_NEAR(robot->theta, 0.0f, 0.01f);
 }
 
@@ -86,8 +86,8 @@ TEST_F(WorldManagerTest, ResetRestoresInitialState) {
 
     world_->reset();
 
-    EXPECT_NEAR(robot->x, 1.0f, 0.01f);
-    EXPECT_NEAR(robot->y, 1.0f, 0.01f);
+    EXPECT_NEAR(robot->x, 2.0f, 0.01f);
+    EXPECT_NEAR(robot->y, 2.0f, 0.01f);
     EXPECT_FLOAT_EQ(world_->simTime(), 0.0f);
     EXPECT_FALSE(world_->isRunning());
 }
@@ -154,22 +154,22 @@ TEST_F(WorldManagerTest, FindObjectByColorSkipsPicked) {
 
 TEST_F(WorldManagerTest, CheckCollisionWithWalls) {
     // Points inside walls should collide
-    EXPECT_TRUE(world_->checkCollision(0.05f, 5.0f));  // Left wall
-    EXPECT_TRUE(world_->checkCollision(9.95f, 5.0f)); // Right wall
+    EXPECT_TRUE(world_->checkCollision(0.05f, 10.0f));  // Left wall
+    EXPECT_TRUE(world_->checkCollision(19.95f, 10.0f)); // Right wall
 
     // Points in open space should not collide
-    EXPECT_FALSE(world_->checkCollision(5.0f, 5.0f));
+    EXPECT_FALSE(world_->checkCollision(10.0f, 10.0f));
 }
 
 TEST_F(WorldManagerTest, IsInBounds) {
-    EXPECT_TRUE(world_->isInBounds(5.0f, 5.0f));
-    EXPECT_TRUE(world_->isInBounds(0.0f, 0.0f));
     EXPECT_TRUE(world_->isInBounds(10.0f, 10.0f));
+    EXPECT_TRUE(world_->isInBounds(0.0f, 0.0f));
+    EXPECT_TRUE(world_->isInBounds(20.0f, 20.0f));
 
-    EXPECT_FALSE(world_->isInBounds(-0.1f, 5.0f));
-    EXPECT_FALSE(world_->isInBounds(10.1f, 5.0f));
-    EXPECT_FALSE(world_->isInBounds(5.0f, -0.1f));
-    EXPECT_FALSE(world_->isInBounds(5.0f, 10.1f));
+    EXPECT_FALSE(world_->isInBounds(-0.1f, 10.0f));
+    EXPECT_FALSE(world_->isInBounds(20.1f, 10.0f));
+    EXPECT_FALSE(world_->isInBounds(10.0f, -0.1f));
+    EXPECT_FALSE(world_->isInBounds(10.0f, 20.1f));
 }
 
 TEST_F(WorldManagerTest, CollisionRollback) {
@@ -224,6 +224,27 @@ TEST_F(WorldManagerTest, FindZoneByName) {
 
     ASSERT_NE(zone, nullptr);
     EXPECT_EQ(zone->zone_name, "drop_zone");
+}
+
+TEST_F(WorldManagerTest, HasObstacles) {
+    // Should have 4 boundary walls + 5 obstacle walls = 9 total
+    EXPECT_GE(world_->walls().size(), 9u);
+}
+
+TEST_F(WorldManagerTest, ObstacleBlocksMovement) {
+    world_->start();
+    auto* robot = world_->robot();
+
+    // Position robot next to obstacle_3 (at 6,3 size 2x2)
+    robot->x = 5.5f;
+    robot->y = 4.0f;
+    robot->setCommand(1.0f, 0.0f);  // Move toward obstacle
+
+    float prev_x = robot->x;
+    world_->step(0.5f);
+
+    // Robot should be stopped by obstacle
+    EXPECT_NEAR(robot->x, prev_x, 0.01f);
 }
 
 // ============ Multi-Robot Tests ============

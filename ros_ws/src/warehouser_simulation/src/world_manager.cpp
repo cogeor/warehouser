@@ -38,26 +38,19 @@ std::expected<void, std::string> WorldManager::loadConfig(
 
     // For now, create a default world
     // TODO: Parse YAML config file
+    // Note: Robot is already created in constructor, no need to add here
 
-    // Create default robot using legacy spawn position
-    RobotSpawnConfig default_spawn;
-    default_spawn.id = "robot";
-    default_spawn.x = config_.robot_spawn[0];
-    default_spawn.y = config_.robot_spawn[1];
-    default_spawn.theta = config_.robot_spawn[2];
-    addRobot(default_spawn);
-
-    // Create some default objects
-    auto red = std::make_unique<PickableObject>("red_1", 3.0f, 2.0f, "red");
-    initial_object_positions_.emplace_back("red_1", std::make_pair(3.0f, 2.0f));
+    // Create pickable objects spread across larger world
+    auto red = std::make_unique<PickableObject>("red_1", 5.0f, 8.0f, "red");
+    initial_object_positions_.emplace_back("red_1", std::make_pair(5.0f, 8.0f));
     objects_.push_back(std::move(red));
 
-    auto green = std::make_unique<PickableObject>("green_1", 5.0f, 4.0f, "green");
-    initial_object_positions_.emplace_back("green_1", std::make_pair(5.0f, 4.0f));
+    auto green = std::make_unique<PickableObject>("green_1", 12.0f, 5.0f, "green");
+    initial_object_positions_.emplace_back("green_1", std::make_pair(12.0f, 5.0f));
     objects_.push_back(std::move(green));
 
-    auto blue = std::make_unique<PickableObject>("blue_1", 7.0f, 3.0f, "blue");
-    initial_object_positions_.emplace_back("blue_1", std::make_pair(7.0f, 3.0f));
+    auto blue = std::make_unique<PickableObject>("blue_1", 15.0f, 12.0f, "blue");
+    initial_object_positions_.emplace_back("blue_1", std::make_pair(15.0f, 12.0f));
     objects_.push_back(std::move(blue));
 
     // Create boundary walls (thin walls around the perimeter)
@@ -71,9 +64,23 @@ std::expected<void, std::string> WorldManager::loadConfig(
     walls_.push_back(std::make_unique<Wall>("wall_right", config_.width - 0.1f,
                                              0.0f, 0.1f, config_.height));
 
-    // Create drop zone
+    // Create interior obstacles (using Wall entities)
+    // Obstacle 1: Vertical bar in upper-left quadrant
+    walls_.push_back(std::make_unique<Wall>("obstacle_1", 4.0f, 12.0f, 1.0f, 4.0f));
+
+    // Obstacle 2: Horizontal bar in center
+    walls_.push_back(std::make_unique<Wall>("obstacle_2", 8.0f, 8.0f, 4.0f, 1.0f));
+
+    // Obstacle 3: Square block in lower-center
+    walls_.push_back(std::make_unique<Wall>("obstacle_3", 6.0f, 3.0f, 2.0f, 2.0f));
+
+    // Obstacle 4: L-shaped obstacle (two walls) in right side
+    walls_.push_back(std::make_unique<Wall>("obstacle_4a", 14.0f, 6.0f, 1.0f, 4.0f));
+    walls_.push_back(std::make_unique<Wall>("obstacle_4b", 14.0f, 6.0f, 3.0f, 1.0f));
+
+    // Create drop zone (moved for larger world)
     zones_.push_back(
-        std::make_unique<Zone>("drop_zone", 8.0f, 8.0f, "drop_zone", 0.5f));
+        std::make_unique<Zone>("drop_zone", 16.0f, 16.0f, "drop_zone", 0.5f));
 
     return {};
 }
@@ -116,8 +123,8 @@ void WorldManager::resetWithRobotCount(size_t robot_count) {
 
     // Spawn requested number of robots with distributed positions
     const float spacing = 2.0f;  // Minimum spacing between robots
-    const float start_x = 1.0f;
-    const float start_y = 1.0f;
+    const float start_x = 2.0f;
+    const float start_y = 2.0f;
 
     for (size_t i = 0; i < robot_count; ++i) {
         RobotSpawnConfig spawn;
