@@ -62,6 +62,12 @@ function arraysEqual(a: number[], b: number[]): boolean {
 }
 
 /**
+ * Throttle interval for trajectory recording (ms)
+ * Records at most 10 points per second
+ */
+const TRAJECTORY_THROTTLE_MS = 100;
+
+/**
  * Bridge component that syncs ROS topic data to Zustand store.
  * Renders nothing - purely for side effects.
  */
@@ -95,6 +101,8 @@ export function RosDataBridge(): null {
     robotTheta: 0,
   });
   const prevTaskRef = useRef<{ state: string; intent: string }>({ state: '', intent: '' });
+  // Track last trajectory recording timestamp for throttling
+  const lastTrajectoryTimestampRef = useRef<number>(0);
 
   // Sync connection status
   useEffect(() => {
@@ -125,6 +133,24 @@ export function RosDataBridge(): null {
     }
 
     useAppStore.getState().setSimTime(worldState.sim_time);
+
+    // Record trajectory point if trace is enabled (with throttling)
+    const state = useAppStore.getState();
+    if (state.traceEnabled) {
+      const now = Date.now();
+      if (now - lastTrajectoryTimestampRef.current >= TRAJECTORY_THROTTLE_MS) {
+        // Find the selected robot (or first robot if none selected)
+        const robots = entities.filter((e) => e.type === 'robot');
+        const selectedRobot = state.selectedRobotId
+          ? robots.find((r) => r.id === state.selectedRobotId)
+          : robots[0];
+
+        if (selectedRobot) {
+          state.addTrajectoryPoint(selectedRobot.x, selectedRobot.y);
+          lastTrajectoryTimestampRef.current = now;
+        }
+      }
+    }
   }, [worldState]);
 
   // Sync lidar data to store (only when data changes)

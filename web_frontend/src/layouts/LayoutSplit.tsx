@@ -8,6 +8,7 @@
 import { SimulationCanvas } from '../components/SimulationCanvas'
 import { StatusDisplay } from '../components/ui/StatusDisplay'
 import { ConnectionDot } from '../components/ui/ConnectionDot'
+import { OptionsPanel } from '../components/panels/OptionsPanel'
 import { useTriggerService } from '../hooks/useRosService'
 import { useAppStore } from '../store/appStore'
 import { useKeyboardControl } from '../hooks/useKeyboardControl'
@@ -65,6 +66,14 @@ export function LayoutSplit() {
           </div>
         </div>
 
+        {/* Options section */}
+        <div className="p-4 border-b border-gray-100">
+          <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
+            Options
+          </h3>
+          <OptionsPanel />
+        </div>
+
         {/* Status section */}
         <div className="p-4 flex-1">
           <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
@@ -83,7 +92,7 @@ export function LayoutSplit() {
 }
 
 function ControlButton({ label, icon }: { label: string; icon: 'play' | 'pause' | 'reset' }) {
-  const { startSim, pauseSim, resetSim, simRunning, setSimRunning } = useSimControls()
+  const { startSim, pauseSim, resetSim, simRunning, setSimRunning, clearTrajectory } = useSimControls()
 
   const handleClick = async () => {
     if (icon === 'play') {
@@ -95,6 +104,8 @@ function ControlButton({ label, icon }: { label: string; icon: 'play' | 'pause' 
     } else {
       await resetSim()
       setSimRunning(false)
+      // Clear trajectory on reset
+      clearTrajectory()
     }
   }
 
@@ -150,9 +161,10 @@ function ControlIcon({ icon }: { icon: 'play' | 'pause' | 'reset' }) {
 function useSimControls() {
   const simRunning = useAppStore((s) => s.simRunning)
   const setSimRunning = useAppStore((s) => s.setSimRunning)
+  const clearTrajectory = useAppStore((s) => s.clearTrajectory)
   const startSim = useTriggerService('/sim/start')
   const pauseSim = useTriggerService('/sim/pause')
   const resetSim = useTriggerService('/sim/reset')
 
-  return { startSim, pauseSim, resetSim, simRunning, setSimRunning }
+  return { startSim, pauseSim, resetSim, simRunning, setSimRunning, clearTrajectory }
 }

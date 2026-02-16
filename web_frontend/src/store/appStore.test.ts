@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { useAppStore } from './appStore'
+import { useAppStore, MAX_TRAJECTORY_POINTS } from './appStore'
 
 describe('AppStore', () => {
   beforeEach(() => {
@@ -19,6 +19,8 @@ describe('AppStore', () => {
       simTime: 0,
       policyEnabled: false,
       selectedEntityId: null,
+      traceEnabled: false,
+      trajectoryHistory: [],
     })
   })
 
@@ -133,6 +135,64 @@ describe('AppStore', () => {
       expect(useAppStore.getState().policyEnabled).toBe(true)
       useAppStore.getState().setPolicyEnabled(false)
       expect(useAppStore.getState().policyEnabled).toBe(false)
+    })
+  })
+
+  describe('trajectory trace', () => {
+    it('setTraceEnabled toggles state correctly', () => {
+      expect(useAppStore.getState().traceEnabled).toBe(false)
+      useAppStore.getState().setTraceEnabled(true)
+      expect(useAppStore.getState().traceEnabled).toBe(true)
+      useAppStore.getState().setTraceEnabled(false)
+      expect(useAppStore.getState().traceEnabled).toBe(false)
+    })
+
+    it('addTrajectoryPoint appends points with timestamps', () => {
+      const beforeTime = Date.now()
+      useAppStore.getState().addTrajectoryPoint(1.5, 2.5)
+      const afterTime = Date.now()
+
+      const history = useAppStore.getState().trajectoryHistory
+      expect(history).toHaveLength(1)
+      expect(history[0].x).toBe(1.5)
+      expect(history[0].y).toBe(2.5)
+      expect(history[0].timestamp).toBeGreaterThanOrEqual(beforeTime)
+      expect(history[0].timestamp).toBeLessThanOrEqual(afterTime)
+    })
+
+    it('addTrajectoryPoint accumulates multiple points', () => {
+      useAppStore.getState().addTrajectoryPoint(1, 1)
+      useAppStore.getState().addTrajectoryPoint(2, 2)
+      useAppStore.getState().addTrajectoryPoint(3, 3)
+
+      const history = useAppStore.getState().trajectoryHistory
+      expect(history).toHaveLength(3)
+      expect(history[0].x).toBe(1)
+      expect(history[1].x).toBe(2)
+      expect(history[2].x).toBe(3)
+    })
+
+    it('clearTrajectory empties the history', () => {
+      useAppStore.getState().addTrajectoryPoint(1, 1)
+      useAppStore.getState().addTrajectoryPoint(2, 2)
+      expect(useAppStore.getState().trajectoryHistory).toHaveLength(2)
+
+      useAppStore.getState().clearTrajectory()
+      expect(useAppStore.getState().trajectoryHistory).toHaveLength(0)
+    })
+
+    it('enforces max points limit with circular buffer behavior', () => {
+      // Add more than MAX_TRAJECTORY_POINTS
+      for (let i = 0; i < MAX_TRAJECTORY_POINTS + 10; i++) {
+        useAppStore.getState().addTrajectoryPoint(i, i)
+      }
+
+      const history = useAppStore.getState().trajectoryHistory
+      expect(history).toHaveLength(MAX_TRAJECTORY_POINTS)
+      // Oldest points should be removed, so first point should be 10
+      expect(history[0].x).toBe(10)
+      // Last point should be MAX_TRAJECTORY_POINTS + 9
+      expect(history[history.length - 1].x).toBe(MAX_TRAJECTORY_POINTS + 9)
     })
   })
 })

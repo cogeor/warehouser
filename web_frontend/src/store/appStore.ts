@@ -13,6 +13,14 @@ export interface Entity {
   carriedId?: string
 }
 
+export interface TrajectoryPoint {
+  x: number
+  y: number
+  timestamp: number
+}
+
+export const MAX_TRAJECTORY_POINTS = 1000
+
 export interface AppState {
   // Connection
   connected: boolean
@@ -59,6 +67,13 @@ export interface AppState {
   // Multi-robot support
   selectedRobotId: string | null
   setSelectedRobotId: (id: string | null) => void
+
+  // Trajectory trace
+  traceEnabled: boolean
+  setTraceEnabled: (enabled: boolean) => void
+  trajectoryHistory: TrajectoryPoint[]
+  addTrajectoryPoint: (x: number, y: number) => void
+  clearTrajectory: () => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -108,6 +123,22 @@ export const useAppStore = create<AppState>((set) => ({
   // Multi-robot support
   selectedRobotId: null,
   setSelectedRobotId: (id) => set({ selectedRobotId: id }),
+
+  // Trajectory trace
+  traceEnabled: false,
+  setTraceEnabled: (enabled) => set({ traceEnabled: enabled }),
+  trajectoryHistory: [],
+  addTrajectoryPoint: (x, y) =>
+    set((state) => {
+      const newPoint: TrajectoryPoint = { x, y, timestamp: Date.now() }
+      const newHistory = [...state.trajectoryHistory, newPoint]
+      // Circular buffer behavior: remove oldest when full
+      if (newHistory.length > MAX_TRAJECTORY_POINTS) {
+        return { trajectoryHistory: newHistory.slice(newHistory.length - MAX_TRAJECTORY_POINTS) }
+      }
+      return { trajectoryHistory: newHistory }
+    }),
+  clearTrajectory: () => set({ trajectoryHistory: [] }),
 }))
 
 export function selectRobots(state: AppState): Entity[] {

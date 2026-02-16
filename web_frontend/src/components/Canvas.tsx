@@ -11,6 +11,7 @@ import {
   CanvasObjects,
   CanvasLidar,
   CanvasRobots,
+  CanvasTrajectory,
 } from './canvas/index'
 
 const FLOOR_TILE_SIZE = 60
@@ -30,6 +31,9 @@ function CanvasInner() {
   const lidarRobotTheta = useAppStore((s) => s.lidarRobotTheta)
   const selectedRobotId = useAppStore((s) => s.selectedRobotId)
   const setSelectedRobotId = useAppStore((s) => s.setSelectedRobotId)
+  // Trajectory trace state
+  const traceEnabled = useAppStore((s) => s.traceEnabled)
+  const trajectoryHistory = useAppStore(useShallow((s) => s.trajectoryHistory))
 
 
   // Memoize filtered entities - WorldState is source of truth for robot positions
@@ -80,6 +84,15 @@ function CanvasInner() {
           scale={SCALE}
           canvasSize={CANVAS_CONFIG.CANVAS_SIZE}
         />
+
+        {/* Trajectory trace - rendered between zones and objects */}
+        {traceEnabled && trajectoryHistory.length >= 2 && (
+          <CanvasTrajectory
+            points={trajectoryHistory}
+            scale={SCALE}
+            canvasSize={CANVAS_CONFIG.CANVAS_SIZE}
+          />
+        )}
 
         {/* Objects */}
         <CanvasObjects
