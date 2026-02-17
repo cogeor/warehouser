@@ -17,6 +17,8 @@ struct Action {
 
 struct ModelInfo {
     std::string path;
+    std::string version;
+    std::string export_timestamp;
     int64_t obs_dim{8};
     int64_t action_dim{4};
     bool loaded{false};

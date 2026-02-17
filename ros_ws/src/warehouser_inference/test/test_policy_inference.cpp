@@ -33,6 +33,14 @@ TEST_F(PolicyInferenceTest, StubLoadSucceeds) {
     EXPECT_TRUE(policy_.isLoaded());
 }
 
+TEST_F(PolicyInferenceTest, StubHasVersionInfo) {
+    policy_.loadModel(__FILE__);
+    const auto& info = policy_.getModelInfo();
+    EXPECT_EQ(info.version, "stub");
+    EXPECT_EQ(info.obs_dim, 8);
+    EXPECT_EQ(info.action_dim, 4);
+}
+
 TEST_F(PolicyInferenceTest, StubInferReturnsReactiveAction) {
     // Load stub model
     policy_.loadModel(__FILE__);

@@ -93,6 +93,10 @@ if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
   ament_add_gtest(test_policy_inference test/test_policy_inference.cpp)
   target_link_libraries(test_policy_inference ${PROJECT_NAME}_lib)
+  # Propagate ONNXRUNTIME_AVAILABLE to tests so #ifdef guards compile consistently
+  if(ONNXRUNTIME_FOUND)
+    target_compile_definitions(test_policy_inference PRIVATE ONNXRUNTIME_AVAILABLE)
+  endif()
 endif()
 
 ament_package()

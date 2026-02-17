@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <fstream>
+#include <iostream>
 
 #ifdef ONNXRUNTIME_AVAILABLE
 #include <onnxruntime_cxx_api.h>
@@ -56,8 +57,10 @@ Result<void> PolicyInference::loadModel(const std::string& model_path) {
 
         auto input_shape = impl_->session->GetInputTypeInfo(0)
             .GetTensorTypeAndShapeInfo().GetShape();
+        int64_t shape_obs_dim = 0;
         if (input_shape.size() == 2) {
-            impl_->model_info.obs_dim = input_shape[1];
+            shape_obs_dim = input_shape[1];
+            impl_->model_info.obs_dim = shape_obs_dim;
         }
 
         auto output_count = impl_->session->GetOutputCount();
@@ -67,12 +70,76 @@ Result<void> PolicyInference::loadModel(const std::string& model_path) {
 
         auto output_shape = impl_->session->GetOutputTypeInfo(0)
             .GetTensorTypeAndShapeInfo().GetShape();
+        int64_t shape_action_dim = 0;
         if (output_shape.size() == 2) {
-            impl_->model_info.action_dim = output_shape[1];
+            shape_action_dim = output_shape[1];
+            impl_->model_info.action_dim = shape_action_dim;
+        }
+
+        // Read ONNX model metadata
+        Ort::ModelMetadata metadata = impl_->session->GetModelMetadata();
+
+        // Get custom metadata keys
+        auto keys = metadata.GetCustomMetadataMapKeysAllocated(allocator);
+
+        int64_t metadata_obs_dim = 0;
+        int64_t metadata_action_dim = 0;
+
+        for (size_t i = 0; i < keys.size(); ++i) {
+            std::string key(keys[i].get());
+            auto value = metadata.LookupCustomMetadataMapAllocated(key.c_str(), allocator);
+            if (value) {
+                std::string val_str(value.get());
+
+                if (key == "model_version") {
+                    impl_->model_info.version = val_str;
+                } else if (key == "export_timestamp") {
+                    impl_->model_info.export_timestamp = val_str;
+                } else if (key == "obs_dim") {
+                    try {
+                        metadata_obs_dim = std::stoll(val_str);
+                    } catch (...) {
+                        return Result<void>::failure(
+                            "Invalid obs_dim metadata value: '" + val_str + "' (expected integer)");
+                    }
+                } else if (key == "action_dim") {
+                    try {
+                        metadata_action_dim = std::stoll(val_str);
+                    } catch (...) {
+                        return Result<void>::failure(
+                            "Invalid action_dim metadata value: '" + val_str + "' (expected integer)");
+                    }
+                }
+            }
+        }
+
+        // Validate metadata dimensions match model shape dimensions
+        if (metadata_obs_dim > 0 && shape_obs_dim > 0 && metadata_obs_dim != shape_obs_dim) {
+            return Result<void>::failure(
+                "Model metadata obs_dim mismatch: metadata says " +
+                std::to_string(metadata_obs_dim) +
+                " but model shape is " + std::to_string(shape_obs_dim));
+        }
+
+        if (metadata_action_dim > 0 && shape_action_dim > 0 && metadata_action_dim != shape_action_dim) {
+            return Result<void>::failure(
+                "Model metadata action_dim mismatch: metadata says " +
+                std::to_string(metadata_action_dim) +
+                " but model shape is " + std::to_string(shape_action_dim));
         }
 
         impl_->model_info.path = model_path;
         impl_->model_info.loaded = true;
+
+        // Log model version on successful load
+        if (!impl_->model_info.version.empty()) {
+            std::cout << "[PolicyInference] Loaded model version: "
+                      << impl_->model_info.version << std::endl;
+        }
+        if (!impl_->model_info.export_timestamp.empty()) {
+            std::cout << "[PolicyInference] Export timestamp: "
+                      << impl_->model_info.export_timestamp << std::endl;
+        }
 
         return Result<void>::success();
 
@@ -85,6 +152,7 @@ Result<void> PolicyInference::loadModel(const std::string& model_path) {
     impl_->model_info.loaded = true;
     impl_->model_info.obs_dim = 8;
     impl_->model_info.action_dim = 4;
+    impl_->model_info.version = "stub";
     return Result<void>::success();
 #endif
 }
