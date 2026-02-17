@@ -9,6 +9,11 @@ __pycache__/
 .venv
 training/checkpoints/
 
+# Trained models (binaries)
+models/*.onnx
+models/*.onnx.data
+models/*.pt
+
 # Node
 node_modules/
 
