@@ -42,8 +42,12 @@ COPY ros_ws/src /ros_ws/src
 RUN . /opt/ros/jazzy/setup.sh && \
     colcon build --symlink-install --cmake-args -DONNXRUNTIME_ROOT=/opt/onnxruntime
 
+# Copy trained models (if present)
+# The policy_latest.onnx is created by scripts/deploy.py
+COPY models/ /ros_ws/models/
+
 # Expose rosbridge port
 EXPOSE 9090
 
-# Default: launch demo
+# Default: launch demo with model auto-load
 CMD ["/bin/bash", "-c", ". /opt/ros/jazzy/setup.sh && . /ros_ws/install/setup.sh && ros2 launch warehouser_bringup demo.launch.py"]

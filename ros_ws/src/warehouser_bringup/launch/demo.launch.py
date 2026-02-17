@@ -1,4 +1,8 @@
-"""Demo launch: full system with stub inference (no trained model needed)."""
+"""Demo launch: full system with optional trained model.
+
+If a model exists at /ros_ws/models/policy_latest.onnx, it will be loaded
+automatically. Otherwise, the inference node uses stub behavior.
+"""
 
 from launch import LaunchDescription
 from launch_ros.actions import Node
@@ -10,6 +14,11 @@ def generate_launch_description():
     bringup_dir = get_package_share_directory('warehouser_bringup')
     sim_params = os.path.join(bringup_dir, 'config', 'simulation_params.yaml')
     world_config = os.path.join(bringup_dir, 'config', 'world.yaml')
+
+    # Check for trained model
+    model_path = '/ros_ws/models/policy_latest.onnx'
+    if not os.path.exists(model_path):
+        model_path = ''  # Use stub behavior
 
     return LaunchDescription([
         # Simulation node
@@ -29,11 +38,12 @@ def generate_launch_description():
             output='screen',
         ),
 
-        # Inference node (will use stub behavior without model)
+        # Inference node (auto-loads model if present)
         Node(
             package='warehouser_inference',
             executable='inference_node',
             name='inference',
+            parameters=[{'default_model_path': model_path}],
             output='screen',
         ),
 
