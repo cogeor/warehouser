@@ -13,6 +13,7 @@ Model metadata is embedded in the ONNX file:
 
 import argparse
 import logging
+import os
 import re
 import shutil
 import sys
@@ -25,7 +26,10 @@ import torch
 from onnx import StringStringEntryProto
 from stable_baselines3 import PPO
 
-# Configure logging to be loud about errors
+# Set PYTHONIOENCODING for Windows console compatibility
+os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+
+# Configure logging with UTF-8 encoding for Windows compatibility
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
@@ -216,11 +220,15 @@ def export_to_onnx(
     class PolicyWrapper(torch.nn.Module):
         def __init__(self, policy: torch.nn.Module) -> None:
             super().__init__()
-            self.policy = policy
+            self.features_extractor = policy.features_extractor
+            self.mlp_extractor = policy.mlp_extractor
+            self.action_net = policy.action_net
 
         def forward(self, obs: torch.Tensor) -> Any:
-            # Get action from policy (deterministic)
-            return self.policy.actor.get_action_dist_params(obs)[0]  # type: ignore
+            # Extract features, pass through MLP, get action mean
+            features = self.features_extractor(obs)  # type: ignore[operator]
+            latent_pi, _ = self.mlp_extractor(features)  # type: ignore[operator]
+            return self.action_net(latent_pi)  # type: ignore[operator]
 
     wrapper = PolicyWrapper(policy)
     wrapper.eval()
@@ -242,6 +250,17 @@ def export_to_onnx(
                 "action": {0: "batch_size"},
             },
         )
+    except UnicodeEncodeError:
+        # Windows console can't print some Unicode chars from torch internals
+        # Check if export actually succeeded despite the console error
+        output_file = Path(output_path)
+        if not output_file.exists() or output_file.stat().st_size == 0:
+            raise ExportError(
+                "ONNX export failed (console encoding error during output).\n"
+                "Try setting PYTHONIOENCODING=utf-8 environment variable."
+            )
+        # Export succeeded, continue
+        logger.info("Export completed despite console encoding warning")
     except Exception as e:
         raise ExportError(
             f"Failed to export model to ONNX: {e}\n"
