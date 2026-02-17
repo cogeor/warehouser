@@ -1,5 +1,6 @@
 .arch/
 .claude/
+.delegate/
 CLAUDE.md
 run.md
 *pycache*
@@ -10,6 +11,11 @@ training/checkpoints/
 
 # Node
 node_modules/
+
+# ROS2 build artifacts
+ros_ws/build/
+ros_ws/install/
+ros_ws/log/
 
 # Coverage
 .coverage
