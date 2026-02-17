@@ -1,0 +1,50 @@
+loops:
+  - id: "01"
+    summary: "Add ONNX Runtime to Docker and verify inference"
+    scope: "docker, inference"
+    type: "feat"
+    description: |
+      Install ONNX Runtime in Dockerfile.demo so real model inference works.
+      Verify the inference node can load ONNX models.
+
+  - id: "02"
+    summary: "Add model versioning and metadata to ONNX export"
+    scope: "training"
+    type: "feat"
+    description: |
+      Enhance export_onnx.py to:
+      - Add version string to ONNX metadata (model_version)
+      - Embed obs_dim and action_dim in metadata
+      - Include version in output filename (model_v1.0.0.onnx)
+      - Add VecNormalize stats export alongside model
+
+  - id: "03"
+    summary: "Add model validation at load time in C++ inference"
+    scope: "inference"
+    type: "feat"
+    description: |
+      Enhance PolicyInference::loadModel to:
+      - Read and validate ONNX metadata
+      - Log model version on load
+      - Provide clear error for incompatible models
+      - Support loading VecNormalize stats (observation normalization)
+
+  - id: "04"
+    summary: "Add train_standalone.py for ROS-free training"
+    scope: "training"
+    type: "feat"
+    description: |
+      Ensure standalone_env.py and train_standalone.py work correctly
+      for training without ROS. This allows rapid iteration before
+      deploying to simulation.
+
+  - id: "05"
+    summary: "Create end-to-end training and deployment guide"
+    scope: "docs"
+    type: "docs"
+    description: |
+      Document the full workflow:
+      1. Train model (standalone or ROS)
+      2. Export to ONNX with versioning
+      3. Copy to Docker/deploy
+      4. Load and run in simulation
