@@ -28,7 +28,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: training
-        run: uv sync
+        run: uv sync --all-extras
 
       - name: Ruff check & format
         working-directory: training
