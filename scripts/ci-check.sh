@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Local CI check script - mirrors what GitHub Actions runs
 # Run this before pushing to ensure CI will pass
 
