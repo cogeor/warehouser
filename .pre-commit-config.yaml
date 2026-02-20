@@ -1,3 +1,5 @@
+default_stages: [pre-commit]
+
 repos:
   # All hooks use local system tools for Windows compatibility
   - repo: local
@@ -24,6 +26,13 @@ repos:
         files: ^training/.*\.py$
         pass_filenames: false
 
+      - id: python-tests
+        name: Python tests
+        entry: bash -c 'cd training && uv run pytest tests/ -v --ignore=tests/integration -x -q'
+        language: system
+        files: ^training/.*\.py$
+        pass_filenames: false
+
       # TypeScript hooks
       - id: eslint
         name: ESLint
@@ -37,4 +46,20 @@ repos:
         entry: bash -c 'cd web_frontend && npx tsc --noEmit'
         language: system
         files: ^web_frontend/src/.*\.(ts|tsx)$
+        pass_filenames: false
+
+      - id: frontend-tests
+        name: Frontend tests
+        entry: bash -c 'cd web_frontend && npm test'
+        language: system
+        files: ^web_frontend/src/.*\.(ts|tsx)$
+        pass_filenames: false
+
+      # Pre-push hook: full CI validation
+      - id: full-ci-check
+        name: Full CI check
+        entry: bash scripts/ci-check.sh
+        language: system
+        stages: [pre-push]
+        always_run: true
         pass_filenames: false
