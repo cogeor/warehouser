@@ -30,13 +30,25 @@ jobs:
         working-directory: training
         run: uv sync
 
-      - name: Ruff check
+      - name: Ruff check & format
         working-directory: training
-        run: uv run ruff check .
+        run: |
+          # Run auto-fixers first
+          uv run ruff check . --fix
+          uv run ruff format .
 
-      - name: Ruff format check
-        working-directory: training
-        run: uv run ruff format --check .
+          # Check if any files were changed
+          if ! git diff --quiet; then
+            echo "::error::Python files need formatting. Run 'cd training && uv run ruff check . --fix && uv run ruff format .' locally."
+            echo ""
+            echo "Files that need changes:"
+            git diff --name-only
+            echo ""
+            echo "Diff:"
+            git diff
+            exit 1
+          fi
+          echo "All Python files are properly formatted!"
 
       - name: Mypy
         working-directory: training

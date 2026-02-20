@@ -36,11 +36,24 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
-      - name: Run ruff check
-        run: uv run ruff check .
+      - name: Run ruff check & format
+        run: |
+          # Run auto-fixers first
+          uv run ruff check . --fix
+          uv run ruff format .
 
-      - name: Run ruff format check
-        run: uv run ruff format --check .
+          # Check if any files were changed
+          if ! git diff --quiet; then
+            echo "::error::Python files need formatting. Run 'cd training && uv run ruff check . --fix && uv run ruff format .' locally."
+            echo ""
+            echo "Files that need changes:"
+            git diff --name-only
+            echo ""
+            echo "Diff:"
+            git diff
+            exit 1
+          fi
+          echo "All Python files are properly formatted!"
 
       - name: Run mypy
         run: uv run mypy training tests --ignore-missing-imports

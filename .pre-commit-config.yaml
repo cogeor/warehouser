@@ -4,17 +4,17 @@ repos:
   # All hooks use local system tools for Windows compatibility
   - repo: local
     hooks:
-      # Python hooks
+      # Python hooks (strict mode - check only, no auto-fix)
       - id: ruff-check
         name: ruff check
-        entry: bash -c 'cd training && uv run ruff check . --fix'
+        entry: bash -c "cd training && uv run ruff check ."
         language: system
         files: ^training/.*\.py$
         pass_filenames: false
 
       - id: ruff-format
         name: ruff format
-        entry: bash -c 'cd training && uv run ruff format .'
+        entry: bash -c "cd training && uv run ruff format --check ."
         language: system
         files: ^training/.*\.py$
         pass_filenames: false
